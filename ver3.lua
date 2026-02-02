@@ -21,80 +21,83 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === UI LISTY GRACZY (PO PRAWEJ) ===
-local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-ScreenGui.Name = "PlayerStatsList"
+-- === SYSTEM PLAYER LIST (NAPRAWIONY) ===
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomPlayerList"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("ScrollingFrame")
-MainFrame.Size = UDim2.new(0, 300, 0, 400)
-MainFrame.Position = UDim2.new(1, -310, 0.5, -200)
-MainFrame.BackgroundTransparency = 0.5
-MainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+MainFrame.Name = "Container"
+MainFrame.Size = UDim2.new(0, 320, 0, 400)
+MainFrame.Position = UDim2.new(1, -330, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BackgroundTransparency = 0.3
 MainFrame.BorderSizePixel = 0
+MainFrame.ScrollBarThickness = 5
 MainFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-MainFrame.ScrollBarThickness = 4
 MainFrame.Parent = ScreenGui
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 5)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Parent = MainFrame
 
--- Funkcja pomocnicza do UI
-local function CreateListLabel(text, color, size, parent)
-    local l = Instance.new("TextLabel")
-    l.Text = text
-    l.TextColor3 = color
-    l.TextSize = size
-    l.FontFace = CustomFont
-    l.BackgroundTransparency = 1
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.Parent = parent
-    
-    local s = Instance.new("UIStroke")
-    s.Thickness = 1
-    s.Parent = l
-    return l
-end
+-- Funkcja do odświeżania listy
+local function RefreshList()
+    -- Czyścimy stare wpisy (zostawiając Layout)
+    for _, child in pairs(MainFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
 
-local function UpdatePlayerList()
-    MainFrame:ClearAllChildren()
-    UIListLayout.Parent = MainFrame
-    
     for _, player in pairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-        
-        local PlayerFrame = Instance.new("Frame")
-        PlayerFrame.Size = UDim2.new(1, -10, 0, 60)
-        PlayerFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-        PlayerFrame.BackgroundTransparency = 0.3
-        PlayerFrame.Parent = MainFrame
-        
-        -- PFP
+
+        local Entry = Instance.new("Frame")
+        Entry.Name = player.Name
+        Entry.Size = UDim2.new(1, -10, 0, 70)
+        Entry.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        Entry.BackgroundTransparency = 0.2
+        Entry.Parent = MainFrame
+
+        -- PFP (Avatar)
         local PFP = Instance.new("ImageLabel")
         PFP.Size = UDim2.new(0, 50, 0, 50)
         PFP.Position = UDim2.new(0, 5, 0.5, -25)
-        PFP.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
+        PFP.Image = "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150"
         PFP.BackgroundTransparency = 1
-        PFP.Parent = PlayerFrame
-        
-        -- Display Name
-        local NameL = CreateListLabel(player.DisplayName, Color3.new(1, 1, 1), 14, PlayerFrame)
-        NameL.Position = UDim2.new(0, 60, 0, 5)
-        
-        -- Stats Container
-        local StatsLabel = CreateListLabel("", Color3.new(1, 1, 1), 16, PlayerFrame)
-        StatsLabel.Position = UDim2.new(0, 60, 0, 25)
-        StatsLabel.Size = UDim2.new(1, -65, 0, 30)
-        StatsLabel.RichText = true
+        PFP.Parent = Entry
 
+        -- Display Name
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(1, -65, 0, 20)
+        NameLabel.Position = UDim2.new(0, 60, 0, 5)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = player.DisplayName
+        NameLabel.TextColor3 = Color3.new(1, 1, 1)
+        NameLabel.TextSize = 16
+        NameLabel.FontFace = CustomFont
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Entry
+
+        -- Stats (HP, WS, LVL, ELO)
+        local StatsLabel = Instance.new("TextLabel")
+        StatsLabel.Size = UDim2.new(1, -65, 0, 40)
+        StatsLabel.Position = UDim2.new(0, 60, 0, 25)
+        StatsLabel.BackgroundTransparency = 1
+        StatsLabel.RichText = true
+        StatsLabel.TextSize = 16
+        StatsLabel.FontFace = CustomFont
+        StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+        StatsLabel.Parent = Entry
+
+        -- Pętla aktualizująca dane konkretnego gracza
         task.spawn(function()
-            while PlayerFrame.Parent do
+            while Entry.Parent do
                 local char = player.Character
                 local hum = char and char:FindFirstChild("Humanoid")
                 local hp = hum and math.floor(hum.Health) or 0
                 local maxHp = hum and hum.MaxHealth or 100
-                
-                -- Kolor HP
                 local hpCol = Color3.fromHSV((hp / maxHp) * 0.35, 0.9, 1):ToHex()
                 
                 local ws = "0"
@@ -109,22 +112,23 @@ local function UpdatePlayerList()
                 end
                 
                 StatsLabel.Text = string.format(
-                    "<font color='#%s'>%d ❤️</font> | <font color='#ffa500'>%s 🔥</font> | <font color='#00bfff'>%s ⭐</font> | <font color='#9400d3'>%s 📊</font>",
+                    "<font size='20' color='#%s'>%d ❤️</font> | <font color='#ffa500'>%s 🔥</font><br/>" ..
+                    "<font color='#00bfff'>%s ⭐</font> | <font color='#9400d3'>%s 📊</font>",
                     hpCol, hp, ws, lvl, elo
                 )
-                task.wait(0.5)
+                task.wait(1)
             end
         end)
     end
     MainFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end
 
-Players.PlayerAdded:Connect(UpdatePlayerList)
-Players.PlayerRemoving:Connect(UpdatePlayerList)
-task.spawn(UpdatePlayerList)
+-- Obsługa zmian w graczach
+Players.PlayerAdded:Connect(RefreshList)
+Players.PlayerRemoving:Connect(RefreshList)
+task.spawn(RefreshList)
 
--- === RESZTA SKRYPTU (ESP I AIMBOT) ===
-
+-- === RESZTA FUNKCJI (ESP & AIMBOT) ===
 local function IsFriend(Player)
     if _G.FriendCheck then return LocalPlayer:IsFriendsWith(Player.UserId) end
     return false
@@ -216,6 +220,7 @@ Players.PlayerAdded:Connect(CreateESP)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.6
+FOVCircle.Color = Color3.new(1,1,1)
 
 local function GetClosestPlayer()
     local MaximumDistance = _G.FOVRadius
