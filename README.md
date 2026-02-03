@@ -34,6 +34,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/XoliwierX7/RubikWare/
 ![](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsQpz4AD96AeQok7f90I2jrljw3B0woxW0NLyZvpyifhM1xT3JSf_33IXh4w2702HxRHtU45lFxyS46Bkt_B89OXYfFleOF1LKFARUAyEGxc1ISTm1sZ31Gqc_01SigsJWHrSP28v2c8zgvxYurQEpMCAQwDOTujfTp4RULAhk_wETON42Rp7f58yIagM/s296/Zrzut%20ekranu%202026-02-03%20023132.png "")
 
 ![](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEje5ip9hGPhyphenhyphenICOmA2GaBHeUG-YgQCI3sw5cDyrClkzrz8VriXgX_KCw4qedjJUcJFnUu3l3VOqE7ICbP4EMTWbQt4NO_pUrRd_-RPx74vm0mV72bHaLRiB3kpqMzHed98giy8EebcXnLZo96C2TQdj9ySyjDN-ZQONCDG0OeCzAbX55u9lXVjw4ljMbIk/s310/Zrzut%20ekranu%202026-02-03%20023055.png "")
+### players showed in screenshots are random players, showed only for example 
+
 #
 
 ```
