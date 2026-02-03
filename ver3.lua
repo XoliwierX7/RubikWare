@@ -2,214 +2,272 @@ local Camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
+_G.TeamCheck = false    
+_G.FriendCheck = true   
 _G.AimPart = "Head" 
+_G.AutoShoot = true     
 _G.FOVRadius = 150
-local ForcedTarget = nil
+_G.ShowESP = true
 
--- CZCIONKA
-local CustomFont = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Bold)
+-- KONFIGURACJA CZCIONKI
+local CustomFont = Font.new(
+    "rbxasset://fonts/families/ComicNeueAngular.json", 
+    Enum.FontWeight.Bold, 
+    Enum.FontStyle.Normal
+)
 
--- === UI SYSTEM ===
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ExtremeInteractiveList"
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- === SYSTEM PLAYER LIST (NAPRAWIONY) ===
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomPlayerList"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Glówny kontener (przeciągalny)
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 360, 0, 500)
-MainFrame.Position = UDim2.new(1, -380, 0.5, -250)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-MainFrame.BackgroundTransparency = 0.15
-MainFrame.Active = true
-MainFrame.Draggable = true -- Możesz przesuwać menu
+local MainFrame = Instance.new("ScrollingFrame")
+MainFrame.Name = "Container"
+MainFrame.Size = UDim2.new(0, 320, 0, 400)
+MainFrame.Position = UDim2.new(1, -330, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BackgroundTransparency = 0.3
+MainFrame.BorderSizePixel = 0
+MainFrame.ScrollBarThickness = 5
+MainFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 MainFrame.Parent = ScreenGui
 
-local UICornerMain = Instance.new("UICorner", MainFrame)
-UICornerMain.CornerRadius = UDim.new(0, 20)
-
-local UIStrokeMain = Instance.new("UIStroke", MainFrame)
-UIStrokeMain.Thickness = 2
-UIStrokeMain.Color = Color3.fromRGB(60, 60, 70)
-
-local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 50)
-Header.BackgroundTransparency = 1
-Header.Text = "TARGET SELECTOR"
-Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.FontFace = CustomFont
-Header.TextSize = 22
-Header.Parent = MainFrame
-
-local Holder = Instance.new("ScrollingFrame")
-Holder.Size = UDim2.new(1, -20, 1, -60)
-Holder.Position = UDim2.new(0, 10, 0, 50)
-Holder.BackgroundTransparency = 1
-Holder.BorderSizePixel = 0
-Holder.ScrollBarThickness = 2
-Holder.CanvasSize = UDim2.new(0, 0, 0, 0)
-Holder.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout", Holder)
-UIListLayout.Padding = UDim.new(0, 10)
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 5)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Parent = MainFrame
 
--- FUNKCJA ANIMACJI
-local function Tween(obj, info, prop)
-    TweenService:Create(obj, TweenInfo.new(unpack(info)), prop):Play()
-end
-
-local function CreatePlayerEntry(player)
-    local Entry = Instance.new("Frame")
-    Entry.Size = UDim2.new(1, -10, 0, 110)
-    Entry.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    Entry.BorderSizePixel = 0
-    Entry.Active = true -- Umożliwia klikanie wewnątrz Scrollingu
-    Entry.Parent = Holder
-    
-    local Corner = Instance.new("UICorner", Entry)
-    Corner.CornerRadius = UDim.new(0, 12)
-    
-    -- Animacja wejścia (slide in)
-    Entry.Position = UDim2.new(1, 0, 0, 0)
-    Tween(Entry, {0.5, Enum.EasingStyle.Back}, {Position = UDim2.new(0, 0, 0, 0)})
-
-    -- PFP
-    local PFP = Instance.new("ImageLabel")
-    PFP.Size = UDim2.new(0, 60, 0, 60)
-    PFP.Position = UDim2.new(0, 10, 0, 10)
-    PFP.Image = "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150"
-    PFP.BackgroundTransparency = 1
-    PFP.Parent = Entry
-    Instance.new("UICorner", PFP).CornerRadius = UDim.new(1, 0)
-
-    -- Name
-    local NameL = Instance.new("TextLabel")
-    NameL.Size = UDim2.new(1, -160, 0, 25)
-    NameL.Position = UDim2.new(0, 80, 0, 10)
-    NameL.BackgroundTransparency = 1
-    NameL.Text = player.DisplayName
-    NameL.TextColor3 = Color3.new(1, 1, 1)
-    NameL.TextSize = 18
-    NameL.FontFace = CustomFont
-    NameL.TextXAlignment = Enum.TextXAlignment.Left
-    NameL.Parent = Entry
-
-    -- Staty
-    local StatsL = Instance.new("TextLabel")
-    StatsL.Size = UDim2.new(1, -160, 0, 60)
-    StatsL.Position = UDim2.new(0, 80, 0, 35)
-    StatsL.BackgroundTransparency = 1
-    StatsL.RichText = true
-    StatsL.FontFace = CustomFont
-    StatsL.TextXAlignment = Enum.TextXAlignment.Left
-    StatsL.Parent = Entry
-
-    -- PRZYCISKI
-    local function CreateButton(text, pos, color)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.new(0, 75, 0, 35)
-        b.Position = pos
-        b.BackgroundColor3 = color
-        b.Text = text
-        b.FontFace = CustomFont
-        b.TextColor3 = Color3.new(1, 1, 1)
-        b.TextSize = 14
-        b.AutoButtonColor = true
-        b.Parent = Entry
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-        
-        b.MouseEnter:Connect(function() Tween(b, {0.2}, {Size = UDim2.new(0, 80, 0, 40)}) end)
-        b.MouseLeave:Connect(function() Tween(b, {0.2}, {Size = UDim2.new(0, 75, 0, 35)}) end)
-        
-        return b
+-- Funkcja do odświeżania listy
+local function RefreshList()
+    -- Czyścimy stare wpisy (zostawiając Layout)
+    for _, child in pairs(MainFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
     end
 
-    local btnAim = CreateButton("🎯 AIM", UDim2.new(1, -85, 0, 15), Color3.fromRGB(200, 40, 40))
-    local btnView = CreateButton("👁️ VIEW", UDim2.new(1, -85, 0, 60), Color3.fromRGB(40, 120, 200))
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
 
-    -- LOGIKA
-    btnAim.MouseButton1Click:Connect(function()
-        if ForcedTarget == player then
-            ForcedTarget = nil
-            btnAim.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-            btnAim.Text = "🎯 AIM"
-        else
-            ForcedTarget = player
-            btnAim.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
-            btnAim.Text = "✅ LOCK"
-        end
-    end)
+        local Entry = Instance.new("Frame")
+        Entry.Name = player.Name
+        Entry.Size = UDim2.new(1, -10, 0, 70)
+        Entry.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        Entry.BackgroundTransparency = 0.2
+        Entry.Parent = MainFrame
 
-    btnView.MouseButton1Click:Connect(function()
-        if Camera.CameraSubject == player.Character:FindFirstChild("Humanoid") then
-            Camera.CameraSubject = LocalPlayer.Character.Humanoid
-            btnView.Text = "👁️ VIEW"
-        elseif player.Character and player.Character:FindFirstChild("Humanoid") then
-            Camera.CameraSubject = player.Character.Humanoid
-            btnView.Text = "🔙 BACK"
-        end
-    end)
+        -- PFP (Avatar)
+        local PFP = Instance.new("ImageLabel")
+        PFP.Size = UDim2.new(0, 50, 0, 50)
+        PFP.Position = UDim2.new(0, 5, 0.5, -25)
+        PFP.Image = "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150"
+        PFP.BackgroundTransparency = 1
+        PFP.Parent = Entry
 
-    -- Live Update Loop
-    task.spawn(function()
-        while Entry.Parent do
-            local hum = player.Character and player.Character:FindFirstChild("Humanoid")
-            local hp = hum and math.floor(hum.Health) or 0
-            local hpHex = Color3.fromHSV((hp/100)*0.35, 0.9, 1):ToHex()
-            local s = player:FindFirstChild("CustomLeaderstats")
-            local ws = s and s:FindFirstChild("Win Streak") and s["Win Streak"].Value or 0
-            local lvl = s and s:FindFirstChild("Level") and s.Level.Value or 0
-            local elo = s and s:FindFirstChild("Current ELO") and s["Current ELO"].Value or 0
+        -- Display Name
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(1, -65, 0, 20)
+        NameLabel.Position = UDim2.new(0, 60, 0, 5)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = player.DisplayName
+        NameLabel.TextColor3 = Color3.new(1, 1, 1)
+        NameLabel.TextSize = 16
+        NameLabel.FontFace = CustomFont
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Entry
 
-            StatsL.Text = string.format("<font color='#%s'>%d❤️</font> <font color='#ffa500'>%s🔥</font>\n<font color='#00bfff'>%s⭐</font> <font color='#9400d3'>%s📊</font>", hpHex, hp, ws, lvl, elo)
-            task.wait(0.5)
-        end
-    end)
-end
+        -- Stats (HP, WS, LVL, ELO)
+        local StatsLabel = Instance.new("TextLabel")
+        StatsLabel.Size = UDim2.new(1, -65, 0, 40)
+        StatsLabel.Position = UDim2.new(0, 60, 0, 25)
+        StatsLabel.BackgroundTransparency = 1
+        StatsLabel.RichText = true
+        StatsLabel.TextSize = 16
+        StatsLabel.FontFace = CustomFont
+        StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+        StatsLabel.Parent = Entry
 
-local function Refresh()
-    for _, v in pairs(Holder:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then CreatePlayerEntry(p) end
+        -- Pętla aktualizująca dane konkretnego gracza
+        task.spawn(function()
+            while Entry.Parent do
+                local char = player.Character
+                local hum = char and char:FindFirstChild("Humanoid")
+                local hp = hum and math.floor(hum.Health) or 0
+                local maxHp = hum and hum.MaxHealth or 100
+                local hpCol = Color3.fromHSV((hp / maxHp) * 0.35, 0.9, 1):ToHex()
+                
+                local ws = "0"
+                local lvl = "0"
+                local elo = "0"
+                
+                local stats = player:FindFirstChild("CustomLeaderstats")
+                if stats then
+                    ws = tostring(stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0)
+                    lvl = tostring(stats:FindFirstChild("Level") and stats.Level.Value or 0)
+                    elo = tostring(stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
+                end
+                
+                StatsLabel.Text = string.format(
+                    "<font size='20' color='#%s'>%d ❤️</font> | <font color='#ffa500'>%s 🔥</font><br/>" ..
+                    "<font color='#00bfff'>%s ⭐</font> | <font color='#9400d3'>%s 📊</font>",
+                    hpCol, hp, ws, lvl, elo
+                )
+                task.wait(1)
+            end
+        end)
     end
-    Holder.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+    MainFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end
 
-Players.PlayerAdded:Connect(Refresh)
-Players.PlayerRemoving:Connect(Refresh)
-Refresh()
+-- Obsługa zmian w graczach
+Players.PlayerAdded:Connect(RefreshList)
+Players.PlayerRemoving:Connect(RefreshList)
+task.spawn(RefreshList)
 
--- === AIMBOT CORE ===
-RunService.RenderStepped:Connect(function()
-    if (Holding or ForcedTarget) and _G.AimbotEnabled then
-        local T = ForcedTarget
-        if not T then
-            local Mouse = UserInputService:GetMouseLocation()
-            local Min = _G.FOVRadius
-            for _, v in pairs(Players:GetPlayers()) do
-                if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
-                    local H = v.Character:FindFirstChild("Humanoid")
-                    if H and H.Health > 0 then
-                        local Pos, On = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
-                        if On then
-                            local D = (Vector2.new(Pos.X, Pos.Y) - Mouse).Magnitude
-                            if D < Min then T = v Min = D end
-                        end
+-- === RESZTA FUNKCJI (ESP & AIMBOT) ===
+local function IsFriend(Player)
+    if _G.FriendCheck then return LocalPlayer:IsFriendsWith(Player.UserId) end
+    return false
+end
+
+local function IsVisible(TargetPart)
+    local Character = LocalPlayer.Character
+    if not Character then return false end
+    local Params = RaycastParams.new()
+    Params.FilterDescendantsInstances = {Character, Camera}
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+    local Result = workspace:Raycast(Camera.CFrame.Position, TargetPart.Position - Camera.CFrame.Position, Params)
+    return not Result or Result.Instance:IsDescendantOf(TargetPart.Parent)
+end
+
+local function CreateStatLabel(name, position, color, parent)
+    local label = Instance.new("TextLabel")
+    label.Name = name
+    label.Size = UDim2.new(1, 0, 0.12, 0)
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.FontFace = CustomFont
+    label.TextColor3 = color
+    label.TextScaled = true
+    label.Parent = parent
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1.5
+    stroke.Parent = label
+    return label
+end
+
+local function CreateESP(Player)
+    local function Setup(Character)
+        local root = Character:WaitForChild("HumanoidRootPart", 10)
+        local hum = Character:WaitForChild("Humanoid", 10)
+        if not root or not hum then return end
+        if root:FindFirstChild("ESP_Tag") then root.ESP_Tag:Destroy() end
+
+        local Billboard = Instance.new("BillboardGui")
+        Billboard.Name = "ESP_Tag"
+        Billboard.Adornee = root
+        Billboard.Size = UDim2.new(5, 0, 9, 0)
+        Billboard.AlwaysOnTop = true
+        Billboard.Parent = root
+
+        local Box = Instance.new("Frame")
+        Box.Size = UDim2.new(0.9, 0, 0.5, 0)
+        Box.Position = UDim2.new(0.05, 0, 0.25, 0)
+        Box.BackgroundTransparency = 1
+        Box.Parent = Billboard
+        local BoxStroke = Instance.new("UIStroke")
+        BoxStroke.Thickness = 2
+        BoxStroke.Parent = Box
+
+        local NameLabel = CreateStatLabel("NameLabel", UDim2.new(0, 0, 0.05, 0), Color3.new(1, 1, 1), Billboard)
+        NameLabel.Text = Player.DisplayName
+        local HPLabel = CreateStatLabel("HPLabel", UDim2.new(0, 0, 0.15, 0), Color3.new(0, 255, 0), Billboard)
+        local WSLabel = CreateStatLabel("WSLabel", UDim2.new(0, 0, 0.75, 0), Color3.fromRGB(255, 165, 0), Billboard)
+        local LevelLabel = CreateStatLabel("LevelLabel", UDim2.new(0, 0, 0.85, 0), Color3.fromRGB(0, 191, 255), Billboard)
+        local EloLabel = CreateStatLabel("EloLabel", UDim2.new(0, 0, 0.95, 0), Color3.fromRGB(148, 0, 211), Billboard)
+
+        RunService.Heartbeat:Connect(function()
+            if not Character.Parent or not root.Parent then Billboard:Destroy() return end
+            if hum.Health > 0 and _G.ShowESP then
+                Billboard.Enabled = true
+                HPLabel.Text = "HP: " .. math.floor(hum.Health)
+                HPLabel.TextColor3 = Color3.fromHSV((hum.Health / hum.MaxHealth) * 0.35, 0.9, 1)
+                
+                local stats = Player:FindFirstChild("CustomLeaderstats")
+                if stats then
+                    WSLabel.Text = "WS: " .. (stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0)
+                    LevelLabel.Text = "LVL: " .. (stats:FindFirstChild("Level") and stats.Level.Value or 0)
+                    EloLabel.Text = "ELO: " .. (stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
+                end
+                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or (IsFriend(Player) and Color3.new(0,1,1) or Color3.new(1,0,0))
+            else
+                Billboard.Enabled = false
+            end
+        end)
+    end
+    Player.CharacterAdded:Connect(Setup)
+    if Player.Character then task.spawn(Setup, Player.Character) end
+end
+
+for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
+Players.PlayerAdded:Connect(CreateESP)
+
+-- === AIMBOT ===
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1
+FOVCircle.Transparency = 0.6
+FOVCircle.Color = Color3.new(1,1,1)
+
+local function GetClosestPlayer()
+    local MaximumDistance = _G.FOVRadius
+    local Target = nil
+    for _, v in next, Players:GetPlayers() do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
+            if _G.TeamCheck and v.Team == LocalPlayer.Team then continue end
+            if _G.FriendCheck and IsFriend(v) then continue end
+            local Hum = v.Character:FindFirstChildOfClass("Humanoid")
+            if Hum and Hum.Health > 0 then
+                local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
+                if OnScreen then
+                    local MousePos = UserInputService:GetMouseLocation()
+                    local VectorDistance = (Vector2.new(MousePos.X, MousePos.Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                    if VectorDistance < MaximumDistance then
+                        Target = v
+                        MaximumDistance = VectorDistance
                     end
                 end
             end
         end
-        if T and T.Character and T.Character:FindFirstChild(_G.AimPart) then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, T.Character[_G.AimPart].Position)
+    end
+    return Target
+end
+
+UserInputService.InputBegan:Connect(function(Input, Processed)
+    if Processed then return end
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then Holding = true
+    elseif Input.KeyCode == Enum.KeyCode.P then _G.AutoShoot = not _G.AutoShoot end
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then Holding = false end
+end)
+
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Visible = true
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+    FOVCircle.Radius = _G.FOVRadius
+    if Holding and _G.AimbotEnabled then
+        local Target = GetClosestPlayer()
+        if Target and Target.Character then
+            local Part = Target.Character[_G.AimPart]
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
+            if _G.AutoShoot and IsVisible(Part) and not IsFriend(Target) then
+                if mouse1click then mouse1click() end
+            end
         end
     end
 end)
-
-UserInputService.InputBegan:Connect(function(i, p) if not p and i.UserInputType == Enum.UserInputType.MouseButton2 then Holding = true end end)
-UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton2 then Holding = false end end)
