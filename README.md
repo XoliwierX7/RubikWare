@@ -10,7 +10,7 @@ RubikWare is a Rivals Cheat Script... nothing to add, nothing to take away :)
 
 ![](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj78d9JAAXD_GSXfEO6pihWwTAEiqPMRbD1hG5p_WzLJtTj4wgRBBOQMMtz1ff1g7w6CFtqh3BcVIw1tV2r38h-l3awCLnCzRIG-PHBpxCIqrEnHf8g7rO61MinhZYfblgxhNeds6fzrrd_Fd685wK0g9gJ_XqEc0sruUdImVEJL8FC-zUWZNcz3ryryuM/s1024/how-to-use-3-02-2026.png "")
 
-1. Download [Solara](wearedevs.net/d/Solara).
+1. Download [Solara](solara.url).
 
 2. Install Solara
 
