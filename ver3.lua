@@ -8,7 +8,7 @@ local Holding = false
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
 _G.TeamCheck = false    
-_G.FriendCheck = true   
+_G.FriendCheck = false   
 _G.AimPart = "Head" 
 _G.AutoShoot = true     
 _G.FOVRadius = 150
