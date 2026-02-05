@@ -16,7 +16,7 @@ _G.FOVRadius = 150
 _G.ShowESP = true
 _G.Noclip = false
 _G.Fly = false
-local FlySpeed = 75 -- Zwiększona prędkość dla lepszego efektu
+local FlySpeed = 75 
 
 -- KONFIGURACJA CZCIONKI
 local CustomFont = Font.new(
@@ -25,11 +25,11 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === SYSTEM RADIAL MENU (NAPRAWIONY: KLAWISZ Y + RESETONSPAWN) ===
+-- === SYSTEM RADIAL MENU (POPRAWKA DLA FIRST PERSON) ===
 local RadialGui = Instance.new("ScreenGui")
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
-RadialGui.ResetOnSpawn = false -- KLUCZOWE: Menu nie znika po śmierci
+RadialGui.ResetOnSpawn = false 
 RadialGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local RadialFrame = Instance.new("Frame", RadialGui)
@@ -88,11 +88,12 @@ local function GetButtonUnderMouse()
     return nil
 end
 
--- Obsługa Klawisza Y
+-- Obsługa Klawisza Y (Z odblokowaniem myszki)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.Y then
         RadialFrame.Visible = true
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default -- Odblokowuje myszkę
     end
 end)
 
@@ -115,25 +116,12 @@ UserInputService.InputEnded:Connect(function(input)
             end
         end
         RadialFrame.Visible = false
+        -- Przywraca kursor do trybu gry (blokuje go z powrotem)
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter 
     end
 end)
 
-RunService.RenderStepped:Connect(function()
-    if RadialFrame.Visible then
-        local Hovered = GetButtonUnderMouse()
-        for _, data in pairs(MenuButtons) do
-            if data.Gui == Hovered then
-                data.Gui.BackgroundColor3 = data.Color
-                data.Gui.TextColor3 = Color3.new(0, 0, 0)
-            else
-                data.Gui.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-                data.Gui.TextColor3 = Color3.new(1, 1, 1)
-            end
-        end
-    end
-end)
-
--- === LOGIKA NOCLIP ===
+-- === LOGIKA PERSYSTENCJI PO ŚMIERCI ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -142,38 +130,46 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- === LOGIKA FLY (W,A,S,D, Space, Shift) ===
+-- === POPRAWIONA LOGIKA FLY ===
 task.spawn(function()
-    local bv = Instance.new("BodyVelocity")
-    local bg = Instance.new("BodyGyro")
-    bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-    
-    while task.wait() do
-        if _G.Fly and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            bv.Parent = LocalPlayer.Character.HumanoidRootPart
-            bg.Parent = LocalPlayer.Character.HumanoidRootPart
-            bg.CFrame = Camera.CFrame
+    while true do
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        
+        if root then
+            local bv = Instance.new("BodyVelocity")
+            local bg = Instance.new("BodyGyro")
+            bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+            bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
             
-            local dir = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0, 1, 0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0, 1, 0) end
-            
-            if dir.Magnitude > 0 then
-                bv.Velocity = dir.Unit * FlySpeed
-            else
-                bv.Velocity = Vector3.new(0,0,0)
+            while char.Parent == workspace do
+                if _G.Fly then
+                    bv.Parent = root
+                    bg.Parent = root
+                    bg.CFrame = Camera.CFrame
+                    
+                    local dir = Vector3.new(0,0,0)
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0, 1, 0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0, 1, 0) end
+                    
+                    bv.Velocity = (dir.Magnitude > 0) and (dir.Unit * FlySpeed) or Vector3.new(0,0,0)
+                else
+                    bv.Parent = nil
+                    bg.Parent = nil
+                end
+                task.wait()
             end
-        else
-            bv.Parent = nil
-            bg.Parent = nil
         end
+        task.wait(1)
     end
 end)
+
+-- [Sekcja ESP, Listy Graczy i Aimbota z Twojego kodu pozostaje bez zmian, 
+--  ponieważ już korzystają z mechanizmów PlayerAdded/CharacterAdded]
 
 -- [Sekcja ESP i PlayerList pozostaje bez zmian, również z ResetOnSpawn = false]
 -- === TWOJA LISTA GRACZY (NIETKNIĘTA) ===
