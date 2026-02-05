@@ -89,11 +89,18 @@ local function GetButtonUnderMouse()
 end
 
 -- Obsługa Klawisza Y (Z odblokowaniem myszki)
+-- Obsługa Klawisza Y (NAPRAWIONA DLA FIRST PERSON)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.Y then
+        -- 1. Pokazujemy menu
         RadialFrame.Visible = true
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default -- Odblokowuje myszkę
+        
+        -- 2. KLUCZOWE: Ustawiamy tryb myszki na None, aby mogła swobodnie latać po ekranie
+        UserInputService.MouseBehavior = Enum.MouseBehavior.None
+        
+        -- 3. Sprawiamy, by kursor był widoczny (ważne w niektórych trybach)
+        UserInputService.MouseIconEnabled = true
     end
 end)
 
@@ -115,9 +122,12 @@ UserInputService.InputEnded:Connect(function(input)
                 Hovered.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
             end
         end
+        
+        -- Zamykamy menu
         RadialFrame.Visible = false
-        -- Przywraca kursor do trybu gry (blokuje go z powrotem)
-        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter 
+        
+        -- Przywracamy blokadę myszki do środka dla trybu FPS
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
     end
 end)
 
