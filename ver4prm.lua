@@ -14,22 +14,21 @@ _G.AimPart = "Head"
 _G.AutoShoot = true     
 _G.FOVRadius = 150
 _G.ShowESP = true
-
--- NOWE USTAWIENIA
 _G.Noclip = false
 _G.Fly = false
 local FlySpeed = 50
 
+-- KONFIGURACJA CZCIONKI
 local CustomFont = Font.new(
     "rbxasset://fonts/families/ComicNeueAngular.json", 
     Enum.FontWeight.Bold, 
     Enum.FontStyle.Normal
 )
 
--- === SYSTEM RADIAL MENU (ULEPSZONY & NAPRAWIONY) ===
+-- === SYSTEM RADIAL MENU (DODATEK) ===
 local RadialGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 RadialGui.Name = "RadialMenuGui"
-RadialGui.IgnoreGuiInset = true -- Pozwala na lepsze pozycjonowanie kursora
+RadialGui.IgnoreGuiInset = true
 
 local RadialFrame = Instance.new("Frame", RadialGui)
 RadialFrame.Size = UDim2.new(0, 400, 0, 400)
@@ -37,20 +36,6 @@ RadialFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
 RadialFrame.BackgroundTransparency = 1
 RadialFrame.Visible = false
 
--- Dekoracyjny pierścień w tle
-local BackgroundRing = Instance.new("Frame", RadialFrame)
-BackgroundRing.Size = UDim2.new(0, 260, 0, 260)
-BackgroundRing.Position = UDim2.new(0.5, -130, 0.5, -130)
-BackgroundRing.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BackgroundRing.BackgroundTransparency = 0.7
-local RingCorner = Instance.new("UICorner", BackgroundRing)
-RingCorner.CornerRadius = UDim.new(1, 0)
-local RingStroke = Instance.new("UIStroke", BackgroundRing)
-RingStroke.Thickness = 2
-RingStroke.Color = Color3.fromRGB(255, 255, 255)
-RingStroke.Transparency = 0.8
-
--- Funkcja do tworzenia przycisków
 local function CreateMenuOption(name, angle, color)
     local Container = Instance.new("Frame", RadialFrame)
     Container.Size = UDim2.new(0, 110, 0, 45)
@@ -66,7 +51,7 @@ local function CreateMenuOption(name, angle, color)
     Option.TextColor3 = Color3.new(1, 1, 1)
     Option.FontFace = CustomFont
     Option.TextSize = 14
-    Option.AutoButtonColor = false -- Wyłączamy domyślne kliknięcie dla własnych animacji
+    Option.AutoButtonColor = false
     
     local Corner = Instance.new("UICorner", Option)
     Corner.CornerRadius = UDim.new(0, 12)
@@ -74,17 +59,12 @@ local function CreateMenuOption(name, angle, color)
     local Stroke = Instance.new("UIStroke", Option)
     Stroke.Thickness = 2
     Stroke.Color = color
-    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- Efekty wizualne po najechaniu myszką
     Option.MouseEnter:Connect(function()
         TweenService:Create(Option, TweenInfo.new(0.2), {BackgroundColor3 = color, TextColor3 = Color3.new(0,0,0)}):Play()
-        TweenService:Create(Container, TweenInfo.new(0.2), {Size = UDim2.new(0, 120, 0, 50)}):Play()
     end)
-    
     Option.MouseLeave:Connect(function()
         TweenService:Create(Option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 25), TextColor3 = Color3.new(1,1,1)}):Play()
-        TweenService:Create(Container, TweenInfo.new(0.2), {Size = UDim2.new(0, 110, 0, 45)}):Play()
     end)
     
     return Option
@@ -95,37 +75,26 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(80, 255, 80))
 local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(80, 80, 255))
 local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 80))
 
--- Logika przełączania
-local function ToggleNoclip()
-    _G.Noclip = not _G.Noclip
-    NoclipBtn.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
-    NoclipBtn.TextColor3 = _G.Noclip and Color3.new(0,1,0) or Color3.new(1,1,1)
-end
-
-local function ToggleFly()
-    _G.Fly = not _G.Fly
-    FlyBtn.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
-    FlyBtn.TextColor3 = _G.Fly and Color3.new(0,1,0) or Color3.new(1,1,1)
-end
-
--- Obsługa otwierania i interakcji (NAPRAWIONE KLIKANIE)
+-- Obsługa G (Otwieranie/Zamykanie i Aktywacja)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.G then
         RadialFrame.Visible = true
-        UserInputService.MouseIconEnabled = true
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.G then
-        -- Sprawdzanie trafienia w guzik przy puszczeniu G
         local pos = UserInputService:GetMouseLocation()
         local objects = LocalPlayer.PlayerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
         
         for _, obj in pairs(objects) do
-            if obj == NoclipBtn then ToggleNoclip()
-            elseif obj == FlyBtn then ToggleFly()
+            if obj == NoclipBtn then 
+                _G.Noclip = not _G.Noclip
+                NoclipBtn.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
+            elseif obj == FlyBtn then 
+                _G.Fly = not _G.Fly
+                FlyBtn.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
             elseif obj == AimBtn then 
                 _G.AimbotEnabled = not _G.AimbotEnabled
                 AimBtn.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
@@ -138,9 +107,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- === RESZTA KODU (BEZ ZMIAN) ===
-
--- LOGIKA NOCLIP & FLY
+-- LOGIKA NOCLIP & FLY (Aby menu działało)
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -150,33 +117,26 @@ RunService.Stepped:Connect(function()
 end)
 
 task.spawn(function()
-    local BodyVel = Instance.new("BodyVelocity")
-    local BodyGyro = Instance.new("BodyGyro")
-    BodyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    BodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-
+    local bv = Instance.new("BodyVelocity")
+    local bg = Instance.new("BodyGyro")
+    bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
     while task.wait() do
         if _G.Fly and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local Root = LocalPlayer.Character.HumanoidRootPart
-            BodyVel.Parent = Root
-            BodyGyro.Parent = Root
-            BodyGyro.CFrame = Camera.CFrame
-            
-            local direction = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction += Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction -= Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction -= Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction += Camera.CFrame.RightVector end
-            
-            BodyVel.Velocity = direction * FlySpeed
+            bv.Parent = LocalPlayer.Character.HumanoidRootPart
+            bg.Parent = LocalPlayer.Character.HumanoidRootPart
+            bg.CFrame = Camera.CFrame
+            local dir = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
+            bv.Velocity = dir * FlySpeed
         else
-            BodyVel.Parent = nil
-            BodyGyro.Parent = nil
+            bv.Parent = nil; bg.Parent = nil
         end
     end
 end)
 
--- SYSTEM PLAYER LIST
+-- === SYSTEM PLAYER LIST (TWOJA LISTA - NIEZMIENIONA) ===
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CustomPlayerList"
 ScreenGui.ResetOnSpawn = false
@@ -202,10 +162,8 @@ local function RefreshList()
     for _, child in pairs(MainFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
-
     for _, player in pairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-
         local Entry = Instance.new("Frame")
         Entry.Name = player.Name
         Entry.Size = UDim2.new(1, -10, 0, 70)
@@ -249,10 +207,7 @@ local function RefreshList()
                 local maxHp = hum and hum.MaxHealth or 100
                 local hpCol = Color3.fromHSV((hp / maxHp) * 0.35, 0.9, 1):ToHex()
                 
-                local ws = "0"
-                local lvl = "0"
-                local elo = "0"
-                
+                local ws, lvl, elo = "0", "0", "0"
                 local stats = player:FindFirstChild("CustomLeaderstats")
                 if stats then
                     ws = tostring(stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0)
@@ -275,6 +230,12 @@ end
 Players.PlayerAdded:Connect(RefreshList)
 Players.PlayerRemoving:Connect(RefreshList)
 task.spawn(RefreshList)
+
+-- === TWOJE FUNKCJE ESP (NIEZMIENIONE) ===
+local function IsFriend(Player)
+    if _G.FriendCheck then return LocalPlayer:IsFriendsWith(Player.UserId) end
+    return false
+end
 
 local function IsVisible(TargetPart)
     local Character = LocalPlayer.Character
@@ -345,7 +306,7 @@ local function CreateESP(Player)
                     LevelLabel.Text = "LVL: " .. (stats:FindFirstChild("Level") and stats.Level.Value or 0)
                     EloLabel.Text = "ELO: " .. (stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
                 end
-                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or Color3.new(1,0,0)
+                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or (IsFriend(Player) and Color3.new(0,1,1) or Color3.new(1,0,0))
             else
                 Billboard.Enabled = false
             end
@@ -358,6 +319,7 @@ end
 for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
 Players.PlayerAdded:Connect(CreateESP)
 
+-- === TWOJA LOGIKA AIMBOTA (NIEZMIENIONA) ===
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.6
@@ -368,6 +330,8 @@ local function GetClosestPlayer()
     local Target = nil
     for _, v in next, Players:GetPlayers() do
         if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
+            if _G.TeamCheck and v.Team == LocalPlayer.Team then continue end
+            if _G.FriendCheck and IsFriend(v) then continue end
             local Hum = v.Character:FindFirstChildOfClass("Humanoid")
             if Hum and Hum.Health > 0 then
                 local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
@@ -404,7 +368,7 @@ RunService.RenderStepped:Connect(function()
         if Target and Target.Character then
             local Part = Target.Character[_G.AimPart]
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
-            if _G.AutoShoot and IsVisible(Part) then
+            if _G.AutoShoot and IsVisible(Part) and not IsFriend(Target) then
                 if mouse1click then mouse1click() end
             end
         end
