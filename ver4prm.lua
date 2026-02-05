@@ -25,7 +25,7 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === SYSTEM RADIAL MENU (POPRAWKA DLA FIRST PERSON) ===
+-- === SYSTEM RADIAL MENU (NAPRAWIONE WYKRYWANIE) ===
 local RadialGui = Instance.new("ScreenGui")
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
@@ -38,7 +38,7 @@ RadialFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
 RadialFrame.BackgroundTransparency = 1
 RadialFrame.Visible = false
 
-local MenuButtons = {}
+local HoveredButton = nil -- Zmienna przechowująca aktualnie wskazany przycisk
 
 local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
@@ -56,7 +56,8 @@ local function CreateMenuOption(name, angle, color, actionName)
     Option.FontFace = CustomFont
     Option.TextSize = 15
     Option.Name = actionName
-    
+    Option.Active = true -- Kluczowe dla eventów myszy
+
     local Corner = Instance.new("UICorner", Option)
     Corner.CornerRadius = UDim.new(0, 12)
     
@@ -64,7 +65,19 @@ local function CreateMenuOption(name, angle, color, actionName)
     Stroke.Thickness = 3
     Stroke.Color = color
 
-    table.insert(MenuButtons, {Gui = Option, Color = color})
+    -- WYKRYWANIE NAJECHANIA PRZEZ EVENTY (Działa zawsze)
+    Option.MouseEnter:Connect(function()
+        HoveredButton = Option
+        Option.BackgroundColor3 = color
+        Option.TextColor3 = Color3.new(0, 0, 0)
+    end)
+
+    Option.MouseLeave:Connect(function()
+        if HoveredButton == Option then HoveredButton = nil end
+        Option.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        Option.TextColor3 = Color3.new(1, 1, 1)
+    end)
+
     return Option
 end
 
@@ -73,65 +86,40 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(80, 255, 80), "Fl
 local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(80, 80, 255), "Aim")
 local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 80), "Esp")
 
-local function GetButtonUnderMouse()
-    local MousePos = UserInputService:GetMouseLocation()
-    for _, data in pairs(MenuButtons) do
-        local Gui = data.Gui
-        local AbsPos = Gui.AbsolutePosition
-        local AbsSize = Gui.AbsoluteSize
-        
-        if MousePos.X >= AbsPos.X and MousePos.X <= AbsPos.X + AbsSize.X and
-           MousePos.Y >= AbsPos.Y and MousePos.Y <= AbsPos.Y + AbsSize.Y then
-            return Gui
-        end
-    end
-    return nil
-end
-
--- Obsługa Klawisza Y (Z odblokowaniem myszki)
--- Obsługa Klawisza Y (NAPRAWIONA DLA FIRST PERSON)
+-- Obsługa Klawisza Y
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.Y then
-        -- 1. Pokazujemy menu
         RadialFrame.Visible = true
-        
-        -- 2. KLUCZOWE: Ustawiamy tryb myszki na None, aby mogła swobodnie latać po ekranie
         UserInputService.MouseBehavior = Enum.MouseBehavior.None
-        
-        -- 3. Sprawiamy, by kursor był widoczny (ważne w niektórych trybach)
         UserInputService.MouseIconEnabled = true
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Y then
-        local Hovered = GetButtonUnderMouse()
-        if Hovered then
-            if Hovered.Name == "Noclip" then
+        if HoveredButton then
+            if HoveredButton.Name == "Noclip" then
                 _G.Noclip = not _G.Noclip
-                Hovered.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
-            elseif Hovered.Name == "Fly" then
+                HoveredButton.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
+            elseif HoveredButton.Name == "Fly" then
                 _G.Fly = not _G.Fly
-                Hovered.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
-            elseif Hovered.Name == "Aim" then
+                HoveredButton.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
+            elseif HoveredButton.Name == "Aim" then
                 _G.AimbotEnabled = not _G.AimbotEnabled
-                Hovered.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
-            elseif Hovered.Name == "Esp" then
+                HoveredButton.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
+            elseif HoveredButton.Name == "Esp" then
                 _G.ShowESP = not _G.ShowESP
-                Hovered.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
+                HoveredButton.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
             end
         end
         
-        -- Zamykamy menu
         RadialFrame.Visible = false
-        
-        -- Przywracamy blokadę myszki do środka dla trybu FPS
         UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
     end
 end)
 
--- === LOGIKA PERSYSTENCJI PO ŚMIERCI ===
+--- === LOGIKA PERSYSTENCJI PO ŚMIERCI ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -140,7 +128,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- === POPRAWIONA LOGIKA FLY ===
+--- === POPRAWIONA LOGIKA FLY ===
 task.spawn(function()
     while true do
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
