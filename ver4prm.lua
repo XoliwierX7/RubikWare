@@ -25,7 +25,7 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === SYSTEM RADIAL MENU (NAPRAWIONY) ===
+-- === SYSTEM RADIAL MENU (NAPRAWIONY - DETEKCJA POZYCJI) ===
 local RadialGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
@@ -36,16 +36,17 @@ RadialFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
 RadialFrame.BackgroundTransparency = 1
 RadialFrame.Visible = false
 
-local SelectedOption = nil -- Tu przechowujemy aktualnie najechaną opcję
+local MenuButtons = {}
 
 local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
     Container.Size = UDim2.new(0, 120, 0, 50)
     local rad = math.rad(angle)
+    -- Ustawienie pozycji przycisków w kole
     Container.Position = UDim2.new(0.5, math.cos(rad) * 130 - 60, 0.5, math.sin(rad) * 130 - 25)
     Container.BackgroundTransparency = 1
 
-    local Option = Instance.new("TextButton", Container)
+    local Option = Instance.new("TextLabel", Container)
     Option.Size = UDim2.new(1, 0, 1, 0)
     Option.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     Option.BackgroundTransparency = 0.2
@@ -53,7 +54,6 @@ local function CreateMenuOption(name, angle, color, actionName)
     Option.TextColor3 = Color3.new(1, 1, 1)
     Option.FontFace = CustomFont
     Option.TextSize = 15
-    Option.AutoButtonColor = false
     Option.Name = actionName
     
     local Corner = Instance.new("UICorner", Option)
@@ -63,17 +63,7 @@ local function CreateMenuOption(name, angle, color, actionName)
     Stroke.Thickness = 3
     Stroke.Color = color
 
-    -- Detekcja najechania myszką
-    Option.MouseEnter:Connect(function()
-        SelectedOption = Option
-        TweenService:Create(Option, TweenInfo.new(0.15), {BackgroundColor3 = color, TextColor3 = Color3.new(0,0,0), Size = UDim2.new(1.1, 0, 1.1, 0)}):Play()
-    end)
-
-    Option.MouseLeave:Connect(function()
-        if SelectedOption == Option then SelectedOption = nil end
-        TweenService:Create(Option, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 25), TextColor3 = Color3.new(1,1,1), Size = UDim2.new(1, 0, 1, 0)}):Play()
-    end)
-    
+    table.insert(MenuButtons, {Gui = Option, Color = color})
     return Option
 end
 
@@ -82,39 +72,77 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(80, 255, 80), "Fl
 local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(80, 80, 255), "Aim")
 local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 80), "Esp")
 
--- Obsługa G (Puszczenie przycisku aktywuje wybraną opcję)
+-- Funkcja sprawdzająca, który przycisk jest pod myszką
+local function GetButtonUnderMouse()
+    local MousePos = UserInputService:GetMouseLocation()
+    for _, data in pairs(MenuButtons) do
+        local Gui = data.Gui
+        local AbsPos = Gui.AbsolutePosition
+        local AbsSize = Gui.AbsoluteSize
+        
+        if MousePos.X >= AbsPos.X and MousePos.X <= AbsPos.X + AbsSize.X and
+           MousePos.Y >= AbsPos.Y and MousePos.Y <= AbsPos.Y + AbsSize.Y then
+            return Gui
+        end
+    end
+    return nil
+end
+
+-- Obsługa G
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.G then
         RadialFrame.Visible = true
-        UserInputService.MouseIconEnabled = true -- Pokazujemy myszkę do wyboru
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.G then
-        RadialFrame.Visible = false
+        local Hovered = GetButtonUnderMouse()
         
-        if SelectedOption then
-            if SelectedOption.Name == "Noclip" then
+        if Hovered then
+            if Hovered.Name == "Noclip" then
                 _G.Noclip = not _G.Noclip
-                SelectedOption.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
-            elseif SelectedOption.Name == "Fly" then
+                Hovered.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
+            elseif Hovered.Name == "Fly" then
                 _G.Fly = not _G.Fly
-                SelectedOption.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
-            elseif SelectedOption.Name == "Aim" then
+                Hovered.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
+            elseif Hovered.Name == "Aim" then
                 _G.AimbotEnabled = not _G.AimbotEnabled
-                SelectedOption.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
-            elseif SelectedOption.Name == "Esp" then
+                Hovered.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
+            elseif Hovered.Name == "Esp" then
                 _G.ShowESP = not _G.ShowESP
-                SelectedOption.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
+                Hovered.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
             end
+            
+            -- Efekt mignięcia po kliknięciu
+            local oldCol = Hovered.BackgroundColor3
+            Hovered.BackgroundColor3 = Color3.new(1, 1, 1)
+            task.wait(0.1)
+            Hovered.BackgroundColor3 = oldCol
         end
-        SelectedOption = nil
+        
+        RadialFrame.Visible = false
     end
 end)
 
--- LOGIKA NOCLIP & FLY
+-- Podświetlanie przycisków w czasie rzeczywistym
+RunService.RenderStepped:Connect(function()
+    if RadialFrame.Visible then
+        local Hovered = GetButtonUnderMouse()
+        for _, data in pairs(MenuButtons) do
+            if data.Gui == Hovered then
+                data.Gui.BackgroundColor3 = data.Color
+                data.Gui.TextColor3 = Color3.new(0, 0, 0)
+            else
+                data.Gui.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+                data.Gui.TextColor3 = Color3.new(1, 1, 1)
+            end
+        end
+    end
+end)
+
+-- === LOGIKA NOCLIP & FLY ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -145,10 +173,10 @@ task.spawn(function()
 end)
 
 -- === TWOJA LISTA GRACZY (NIETKNIĘTA) ===
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CustomPlayerList"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local PlayerListGui = Instance.new("ScreenGui")
+PlayerListGui.Name = "CustomPlayerList"
+PlayerListGui.ResetOnSpawn = false
+PlayerListGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("ScrollingFrame")
 MainFrame.Name = "Container"
@@ -159,7 +187,7 @@ MainFrame.BackgroundTransparency = 0.3
 MainFrame.BorderSizePixel = 0
 MainFrame.ScrollBarThickness = 5
 MainFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-MainFrame.Parent = ScreenGui
+MainFrame.Parent = PlayerListGui
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 5)
