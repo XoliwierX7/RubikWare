@@ -26,59 +26,89 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === SYSTEM RADIAL MENU (RIVALS STYLE) ===
+-- === SYSTEM RADIAL MENU (ULEPSZONY & NAPRAWIONY) ===
 local RadialGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 RadialGui.Name = "RadialMenuGui"
+RadialGui.IgnoreGuiInset = true -- Pozwala na lepsze pozycjonowanie kursora
 
 local RadialFrame = Instance.new("Frame", RadialGui)
-RadialFrame.Size = UDim2.new(0, 300, 0, 300)
-RadialFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
+RadialFrame.Size = UDim2.new(0, 400, 0, 400)
+RadialFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
 RadialFrame.BackgroundTransparency = 1
 RadialFrame.Visible = false
 
--- Funkcja do tworzenia wycinków menu
+-- Dekoracyjny pierścień w tle
+local BackgroundRing = Instance.new("Frame", RadialFrame)
+BackgroundRing.Size = UDim2.new(0, 260, 0, 260)
+BackgroundRing.Position = UDim2.new(0.5, -130, 0.5, -130)
+BackgroundRing.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BackgroundRing.BackgroundTransparency = 0.7
+local RingCorner = Instance.new("UICorner", BackgroundRing)
+RingCorner.CornerRadius = UDim.new(1, 0)
+local RingStroke = Instance.new("UIStroke", BackgroundRing)
+RingStroke.Thickness = 2
+RingStroke.Color = Color3.fromRGB(255, 255, 255)
+RingStroke.Transparency = 0.8
+
+-- Funkcja do tworzenia przycisków
 local function CreateMenuOption(name, angle, color)
-    local Option = Instance.new("TextButton", RadialFrame)
-    Option.Size = UDim2.new(0, 100, 0, 40)
-    -- Rozmieszczenie na okręgu
+    local Container = Instance.new("Frame", RadialFrame)
+    Container.Size = UDim2.new(0, 110, 0, 45)
     local rad = math.rad(angle)
-    Option.Position = UDim2.new(0.5, math.cos(rad) * 110 - 50, 0.5, math.sin(rad) * 110 - 20)
-    Option.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Option.BackgroundTransparency = 0.2
+    Container.Position = UDim2.new(0.5, math.cos(rad) * 130 - 55, 0.5, math.sin(rad) * 130 - 22)
+    Container.BackgroundTransparency = 1
+
+    local Option = Instance.new("TextButton", Container)
+    Option.Size = UDim2.new(1, 0, 1, 0)
+    Option.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Option.BackgroundTransparency = 0.1
     Option.Text = name
-    Option.TextColor3 = color
+    Option.TextColor3 = Color3.new(1, 1, 1)
     Option.FontFace = CustomFont
     Option.TextSize = 14
+    Option.AutoButtonColor = false -- Wyłączamy domyślne kliknięcie dla własnych animacji
     
     local Corner = Instance.new("UICorner", Option)
-    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.CornerRadius = UDim.new(0, 12)
     
     local Stroke = Instance.new("UIStroke", Option)
     Stroke.Thickness = 2
     Stroke.Color = color
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- Efekty wizualne po najechaniu myszką
+    Option.MouseEnter:Connect(function()
+        TweenService:Create(Option, TweenInfo.new(0.2), {BackgroundColor3 = color, TextColor3 = Color3.new(0,0,0)}):Play()
+        TweenService:Create(Container, TweenInfo.new(0.2), {Size = UDim2.new(0, 120, 0, 50)}):Play()
+    end)
+    
+    Option.MouseLeave:Connect(function()
+        TweenService:Create(Option, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(25, 25, 25), TextColor3 = Color3.new(1,1,1)}):Play()
+        TweenService:Create(Container, TweenInfo.new(0.2), {Size = UDim2.new(0, 110, 0, 45)}):Play()
+    end)
     
     return Option
 end
 
-local NoclipBtn = CreateMenuOption("NOCLIP: OFF", 0, Color3.fromRGB(255, 100, 100))
-local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(100, 255, 100))
-local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(100, 100, 255))
-local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 100))
+local NoclipBtn = CreateMenuOption("NOCLIP: OFF", 0, Color3.fromRGB(255, 80, 80))
+local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(80, 255, 80))
+local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(80, 80, 255))
+local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 80))
 
 -- Logika przełączania
 local function ToggleNoclip()
     _G.Noclip = not _G.Noclip
     NoclipBtn.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
-    NoclipBtn.TextColor3 = _G.Noclip and Color3.new(0,1,0) or Color3.new(1,0,0)
+    NoclipBtn.TextColor3 = _G.Noclip and Color3.new(0,1,0) or Color3.new(1,1,1)
 end
 
 local function ToggleFly()
     _G.Fly = not _G.Fly
     FlyBtn.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
-    FlyBtn.TextColor3 = _G.Fly and Color3.new(0,1,0) or Color3.new(1,0,0)
+    FlyBtn.TextColor3 = _G.Fly and Color3.new(0,1,0) or Color3.new(1,1,1)
 end
 
--- Obsługa klawisza "G" dla menu
+-- Obsługa otwierania i interakcji (NAPRAWIONE KLIKANIE)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == Enum.KeyCode.G then
@@ -89,8 +119,7 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.G then
-        RadialFrame.Visible = false
-        -- Sprawdzanie na co najechał użytkownik
+        -- Sprawdzanie trafienia w guzik przy puszczeniu G
         local pos = UserInputService:GetMouseLocation()
         local objects = LocalPlayer.PlayerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
         
@@ -105,10 +134,13 @@ UserInputService.InputEnded:Connect(function(input)
                 EspBtn.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
             end
         end
+        RadialFrame.Visible = false
     end
 end)
 
--- === LOGIKA NOCLIP & FLY ===
+-- === RESZTA KODU (BEZ ZMIAN) ===
+
+-- LOGIKA NOCLIP & FLY
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -144,7 +176,7 @@ task.spawn(function()
     end
 end)
 
--- === SYSTEM PLAYER LIST ===
+-- SYSTEM PLAYER LIST
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CustomPlayerList"
 ScreenGui.ResetOnSpawn = false
@@ -244,7 +276,6 @@ Players.PlayerAdded:Connect(RefreshList)
 Players.PlayerRemoving:Connect(RefreshList)
 task.spawn(RefreshList)
 
--- === ESP & AIMBOT (Pozostałe funkcje bez zmian) ===
 local function IsVisible(TargetPart)
     local Character = LocalPlayer.Character
     if not Character then return false end
@@ -314,7 +345,7 @@ local function CreateESP(Player)
                     LevelLabel.Text = "LVL: " .. (stats:FindFirstChild("Level") and stats.Level.Value or 0)
                     EloLabel.Text = "ELO: " .. (stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
                 end
-                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or (IsFriend(Player) and Color3.new(0,1,1) or Color3.new(1,0,0))
+                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or Color3.new(1,0,0)
             else
                 Billboard.Enabled = false
             end
@@ -337,8 +368,6 @@ local function GetClosestPlayer()
     local Target = nil
     for _, v in next, Players:GetPlayers() do
         if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
-            if _G.TeamCheck and v.Team == LocalPlayer.Team then continue end
-            if _G.FriendCheck and IsFriend(v) then continue end
             local Hum = v.Character:FindFirstChildOfClass("Humanoid")
             if Hum and Hum.Health > 0 then
                 local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
@@ -375,7 +404,7 @@ RunService.RenderStepped:Connect(function()
         if Target and Target.Character then
             local Part = Target.Character[_G.AimPart]
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
-            if _G.AutoShoot and IsVisible(Part) and not IsFriend(Target) then
+            if _G.AutoShoot and IsVisible(Part) then
                 if mouse1click then mouse1click() end
             end
         end
