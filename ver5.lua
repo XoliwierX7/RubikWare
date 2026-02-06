@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
-local LockedTarget = nil -- Zmienna do blokowania celu aimbota
+local LockedTarget = nil -- Zmienna do blokowania celu
 
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
@@ -65,63 +65,64 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === SYSTEM WYBORU GRACZA (DLA BRING) ===
+-- === GUI LISTY GRACZY DLA "BRING" ===
 local BringGui = Instance.new("ScreenGui")
-BringGui.Name = "BringSelection"
+BringGui.Name = "BringPlayerGui"
+BringGui.ResetOnSpawn = false
 BringGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-BringGui.Enabled = false
+BringGui.Enabled = false -- Domyślnie ukryte
 
-local BringMain = Instance.new("Frame", BringGui)
-BringMain.Size = UDim2.new(0, 250, 0, 350)
-BringMain.Position = UDim2.new(0.5, -125, 0.5, -175)
-BringMain.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-BringMain.BorderSizePixel = 0
+local BringFrame = Instance.new("Frame", BringGui)
+BringFrame.Size = UDim2.new(0, 250, 0, 350)
+BringFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+BringFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+BringFrame.BorderSizePixel = 0
 
-local BringCorner = Instance.new("UICorner", BringMain)
-local BringScroll = Instance.new("ScrollingFrame", BringMain)
-BringScroll.Size = UDim2.new(1, -10, 1, -40)
-BringScroll.Position = UDim2.new(0, 5, 0, 35)
+local BringTitle = Instance.new("TextLabel", BringFrame)
+BringTitle.Size = UDim2.new(1, 0, 0, 30)
+BringTitle.BackgroundTransparency = 1
+BringTitle.Text = "WYBIERZ GRACZA (BRING)"
+BringTitle.TextColor3 = Color3.new(1,1,1)
+BringTitle.FontFace = CustomFont
+
+local BringScroll = Instance.new("ScrollingFrame", BringFrame)
+BringScroll.Size = UDim2.new(1, 0, 1, -30)
+BringScroll.Position = UDim2.new(0, 0, 0, 30)
 BringScroll.BackgroundTransparency = 1
 BringScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-BringScroll.ScrollBarThickness = 4
 
-local BringList = Instance.new("UIListLayout", BringScroll)
-BringList.Padding = UDim.new(0, 5)
+local BringLayout = Instance.new("UIListLayout", BringScroll)
+BringLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local BringTitle = Instance.new("TextLabel", BringMain)
-BringTitle.Size = UDim2.new(1, 0, 0, 30)
-BringTitle.Text = "WYBIERZ GRACZA (BRING)"
-BringTitle.TextColor3 = Color3.new(1, 1, 1)
-BringTitle.FontFace = CustomFont
-BringTitle.BackgroundTransparency = 1
-
-local function UpdateBringList()
-    for _, child in pairs(BringScroll:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p == LocalPlayer then continue end
-        local btn = Instance.new("TextButton", BringScroll)
-        btn.Size = UDim2.new(1, -10, 0, 30)
-        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        btn.Text = p.DisplayName
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.FontFace = CustomFont
-        btn.TextSize = 14
-        Instance.new("UICorner", btn)
-        
-        btn.MouseButton1Click:Connect(function()
-            local char = p.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root and myRoot then
-                root.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3)
-            end
-            BringGui.Enabled = false
-        end)
+local function RefreshBringList()
+    for _, v in pairs(BringScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local btn = Instance.new("TextButton", BringScroll)
+            btn.Size = UDim2.new(1, 0, 0, 30)
+            btn.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.FontFace = CustomFont
+            
+            btn.MouseButton1Click:Connect(function()
+                -- Logika teleportacji gracza do siebie
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local targetChar = player.Character
+                local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                
+                if myRoot and targetRoot then
+                    targetRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3) -- Teleportuje 3 study przed Ciebie
+                end
+                BringGui.Enabled = false -- Zamyka menu po wyborze
+            end)
+        end
     end
-    BringScroll.CanvasSize = UDim2.new(0, 0, 0, BringList.AbsoluteContentSize.Y)
+    BringScroll.CanvasSize = UDim2.new(0, 0, 0, BringLayout.AbsoluteContentSize.Y)
 end
 
--- === SYSTEM RADIAL MENU (6 OPCJI) ===
+-- === SYSTEM RADIAL MENU (ZMODYFIKOWANY: 6 OPCJI) ===
 local RadialGui = Instance.new("ScreenGui")
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
@@ -140,7 +141,8 @@ local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
     Container.Size = UDim2.new(0, 125, 0, 50)
     local rad = math.rad(angle)
-    Container.Position = UDim2.new(0.5, math.cos(rad) * 145 - 62, 0.5, math.sin(rad) * 145 - 25)
+    -- Promień koła
+    Container.Position = UDim2.new(0.5, math.cos(rad) * 140 - 62, 0.5, math.sin(rad) * 140 - 25)
     Container.BackgroundTransparency = 1
 
     local Option = Instance.new("TextLabel", Container)
@@ -182,7 +184,7 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 60, Color3.fromRGB(80, 255, 80), "Fl
 local AimBtn = CreateMenuOption("AIM: ON", 120, Color3.fromRGB(80, 80, 255), "Aim")
 local EspBtn = CreateMenuOption("ESP: ON", 180, Color3.fromRGB(255, 255, 80), "Esp")
 local SpawnBtn = CreateMenuOption("TP: SPAWN", 240, Color3.fromRGB(255, 255, 255), "Spawn")
-local BringBtn = CreateMenuOption("BRING PLAYER", 300, Color3.fromRGB(200, 80, 255), "Bring")
+local BringBtn = CreateMenuOption("BRING PLAYER", 300, Color3.fromRGB(255, 0, 255), "Bring")
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -212,18 +214,22 @@ UserInputService.InputEnded:Connect(function(input)
             elseif name == "Spawn" then
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
-                if root then root.CFrame = CFrame.new(SpawnPos) end
+                if root then
+                    root.CFrame = CFrame.new(SpawnPos)
+                end
             elseif name == "Bring" then
-                UpdateBringList()
+                RefreshBringList()
                 BringGui.Enabled = true
             end
         end
         RadialFrame.Visible = false
-        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        if not BringGui.Enabled then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        end
     end
 end)
 
--- === LOGIKA PERSYSTENCJI I FLY (FIXED) ===
+-- === LOGIKA PERSYSTENCJI I FLY (NAPRAWIONE) ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -236,37 +242,38 @@ task.spawn(function()
     while true do
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
         local root = char:WaitForChild("HumanoidRootPart", 5)
+        
         if root then
-            local bv = root:FindFirstChild("FlyVelocity") or Instance.new("BodyVelocity")
-            bv.Name = "FlyVelocity"
-            bv.MaxForce = Vector3.new(0, 0, 0)
+            -- Tworzymy obiekty fizyki raz, a nie w pętli
+            local bv = Instance.new("BodyVelocity")
+            local bg = Instance.new("BodyGyro")
+            bv.MaxForce = Vector3.new(0,0,0) -- Domyślnie wyłączone
+            bg.MaxTorque = Vector3.new(0,0,0)
             bv.Parent = root
-
-            local bg = root:FindFirstChild("FlyGyro") or Instance.new("BodyGyro")
-            bg.Name = "FlyGyro"
-            bg.MaxTorque = Vector3.new(0, 0, 0)
             bg.Parent = root
             
             while char.Parent == workspace do
                 if _G.Fly then
                     bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
                     bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+                    
                     bg.CFrame = Camera.CFrame
                     
                     local dir = Vector3.new(0,0,0)
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
+                    -- Resetujemy wektor ruchu w każdej klatce, żeby postać nie leciała sama
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += Camera.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0, 1, 0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0, 1, 0) end
                     
                     bv.Velocity = (dir.Magnitude > 0) and (dir.Unit * FlySpeed) or Vector3.new(0,0,0)
                 else
-                    bv.MaxForce = Vector3.new(0, 0, 0)
-                    bg.MaxTorque = Vector3.new(0, 0, 0)
+                    bv.MaxForce = Vector3.new(0,0,0)
+                    bg.MaxTorque = Vector3.new(0,0,0)
                 end
-                task.wait()
+                task.wait() -- Krótkie opóźnienie dla pętli
             end
         end
         task.wait(1)
@@ -287,35 +294,54 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BackgroundTransparency = 0.3
 MainFrame.BorderSizePixel = 0
 MainFrame.ScrollBarThickness = 5
+MainFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 MainFrame.Parent = PlayerListGui
 
-local UIListLayout = Instance.new("UIListLayout", MainFrame)
+local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 5)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Parent = MainFrame
 
 local function RefreshList()
-    for _, child in pairs(MainFrame:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
+    for _, child in pairs(MainFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
     for _, player in pairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-        local Entry = Instance.new("Frame", MainFrame)
+        local Entry = Instance.new("Frame")
+        Entry.Name = player.Name
         Entry.Size = UDim2.new(1, -10, 0, 70)
         Entry.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         Entry.BackgroundTransparency = 0.2
+        Entry.Parent = MainFrame
 
-        local PFP = Instance.new("ImageLabel", Entry)
+        local PFP = Instance.new("ImageLabel")
         PFP.Size = UDim2.new(0, 50, 0, 50)
         PFP.Position = UDim2.new(0, 5, 0.5, -25)
         PFP.Image = "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150"
         PFP.BackgroundTransparency = 1
+        PFP.Parent = Entry
 
-        local StatsLabel = Instance.new("TextLabel", Entry)
-        StatsLabel.Size = UDim2.new(1, -65, 1, 0)
-        StatsLabel.Position = UDim2.new(0, 60, 0, 0)
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(1, -65, 0, 20)
+        NameLabel.Position = UDim2.new(0, 60, 0, 5)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = player.DisplayName
+        NameLabel.TextColor3 = Color3.new(1, 1, 1)
+        NameLabel.TextSize = 16
+        NameLabel.FontFace = CustomFont
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Entry
+
+        local StatsLabel = Instance.new("TextLabel")
+        StatsLabel.Size = UDim2.new(1, -65, 0, 40)
+        StatsLabel.Position = UDim2.new(0, 60, 0, 25)
         StatsLabel.BackgroundTransparency = 1
         StatsLabel.RichText = true
-        StatsLabel.TextSize = 15
+        StatsLabel.TextSize = 16
         StatsLabel.FontFace = CustomFont
-        StatsLabel.TextColor3 = Color3.new(1,1,1)
         StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+        StatsLabel.Parent = Entry
 
         task.spawn(function()
             while Entry.Parent do
@@ -325,11 +351,19 @@ local function RefreshList()
                 local maxHp = hum and hum.MaxHealth or 100
                 local hpCol = Color3.fromHSV((hp / maxHp) * 0.35, 0.9, 1):ToHex()
                 
+                local ws, lvl, elo = "0", "0", "0"
                 local stats = player:FindFirstChild("CustomLeaderstats")
-                local ws = stats and stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0
-                local lvl = stats and stats:FindFirstChild("Level") and stats.Level.Value or 0
+                if stats then
+                    ws = tostring(stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0)
+                    lvl = tostring(stats:FindFirstChild("Level") and stats.Level.Value or 0)
+                    elo = tostring(stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
+                end
                 
-                StatsLabel.Text = string.format("<b>%s</b><br/><font color='#%s'>%d HP</font> | WS: %s | LVL: %s", player.DisplayName, hpCol, hp, ws, lvl)
+                StatsLabel.Text = string.format(
+                    "<font size='20' color='#%s'>%d ❤️</font> | <font color='#ffa500'>%s 🔥</font><br/>" ..
+                    "<font color='#00bfff'>%s ⭐</font> | <font color='#9400d3'>%s 📊</font>",
+                    hpCol, hp, ws, lvl, elo
+                )
                 task.wait(1)
             end
         end)
@@ -343,7 +377,8 @@ task.spawn(RefreshList)
 
 -- === ESP LOGIKA ===
 local function IsFriend(Player)
-    return LocalPlayer:IsFriendsWith(Player.UserId)
+    if _G.FriendCheck then return LocalPlayer:IsFriendsWith(Player.UserId) end
+    return false
 end
 
 local function IsVisible(TargetPart)
@@ -366,8 +401,9 @@ local function CreateStatLabel(name, position, color, parent)
     label.TextColor3 = color
     label.TextScaled = true
     label.Parent = parent
-    local stroke = Instance.new("UIStroke", label)
+    local stroke = Instance.new("UIStroke")
     stroke.Thickness = 1.5
+    stroke.Parent = label
     return label
 end
 
@@ -378,26 +414,43 @@ local function CreateESP(Player)
         if not root or not hum then return end
         if root:FindFirstChild("ESP_Tag") then root.ESP_Tag:Destroy() end
 
-        local Billboard = Instance.new("BillboardGui", root)
+        local Billboard = Instance.new("BillboardGui")
         Billboard.Name = "ESP_Tag"
+        Billboard.Adornee = root
         Billboard.Size = UDim2.new(5, 0, 9, 0)
         Billboard.AlwaysOnTop = true
+        Billboard.Parent = root
 
-        local Box = Instance.new("Frame", Billboard)
+        local Box = Instance.new("Frame")
         Box.Size = UDim2.new(0.9, 0, 0.5, 0)
         Box.Position = UDim2.new(0.05, 0, 0.25, 0)
         Box.BackgroundTransparency = 1
-        local BoxStroke = Instance.new("UIStroke", Box)
+        Box.Parent = Billboard
+        local BoxStroke = Instance.new("UIStroke")
         BoxStroke.Thickness = 2
+        BoxStroke.Parent = Box
 
         local NameLabel = CreateStatLabel("NameLabel", UDim2.new(0, 0, 0.05, 0), Color3.new(1, 1, 1), Billboard)
         NameLabel.Text = Player.DisplayName
+        local HPLabel = CreateStatLabel("HPLabel", UDim2.new(0, 0, 0.15, 0), Color3.new(0, 255, 0), Billboard)
+        local WSLabel = CreateStatLabel("WSLabel", UDim2.new(0, 0, 0.75, 0), Color3.fromRGB(255, 165, 0), Billboard)
+        local LevelLabel = CreateStatLabel("LevelLabel", UDim2.new(0, 0, 0.85, 0), Color3.fromRGB(0, 191, 255), Billboard)
+        local EloLabel = CreateStatLabel("EloLabel", UDim2.new(0, 0, 0.95, 0), Color3.fromRGB(148, 0, 211), Billboard)
 
         RunService.Heartbeat:Connect(function()
             if not Character.Parent or not root.Parent then Billboard:Destroy() return end
             if hum.Health > 0 and _G.ShowESP then
                 Billboard.Enabled = true
-                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or (IsFriend(Player) and Color3.new(1,1,0) or Color3.new(1,0,0))
+                HPLabel.Text = "HP: " .. math.floor(hum.Health)
+                HPLabel.TextColor3 = Color3.fromHSV((hum.Health / hum.MaxHealth) * 0.35, 0.9, 1)
+                
+                local stats = Player:FindFirstChild("CustomLeaderstats")
+                if stats then
+                    WSLabel.Text = "WS: " .. (stats:FindFirstChild("Win Streak") and stats["Win Streak"].Value or 0)
+                    LevelLabel.Text = "LVL: " .. (stats:FindFirstChild("Level") and stats.Level.Value or 0)
+                    EloLabel.Text = "ELO: " .. (stats:FindFirstChild("Current ELO") and stats["Current ELO"].Value or 0)
+                end
+                BoxStroke.Color = IsVisible(root) and Color3.new(0,1,0) or (IsFriend(Player) and Color3.new(0,1,1) or Color3.new(1,0,0))
             else
                 Billboard.Enabled = false
             end
@@ -410,7 +463,7 @@ end
 for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
 Players.PlayerAdded:Connect(CreateESP)
 
--- === AIMBOT LOGIKA (FIXED TARGET LOCK) ===
+-- === AIMBOT LOGIKA (NAPRAWIONY TARGET LOCK) ===
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.6
@@ -422,6 +475,9 @@ local function GetClosestPlayer()
     for _, v in next, Players:GetPlayers() do
         if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
             if _G.TeamCheck and v.Team == LocalPlayer.Team then continue end
+            -- USUNIĘTO FRIEND CHECK, ŻEBY MOŻNA BYŁO CELOWAĆ W ZNAJOMYCH
+            -- if _G.FriendCheck and IsFriend(v) then continue end 
+            
             local Hum = v.Character:FindFirstChildOfClass("Humanoid")
             if Hum and Hum.Health > 0 then
                 local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
@@ -452,7 +508,7 @@ end)
 UserInputService.InputEnded:Connect(function(Input)
     if Input.UserInputType == Enum.UserInputType.MouseButton2 then 
         Holding = false 
-        LockedTarget = nil -- Czyścimy cel po puszczeniu przycisku
+        LockedTarget = nil -- Czyścimy cel po puszczeniu
     end
 end)
 
@@ -462,16 +518,21 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Radius = _G.FOVRadius
     
     if Holding and _G.AimbotEnabled then
-        -- Jeśli cel zginął lub wyszedł, szukamy nowego
-        if not LockedTarget or not LockedTarget.Character or not LockedTarget.Character:FindFirstChild(_G.AimPart) or (LockedTarget.Character:FindFirstChild("Humanoid") and LockedTarget.Character.Humanoid.Health <= 0) then
+        -- Jeśli zablokowany cel zniknął lub umarł, spróbuj znaleźć nowego
+        if LockedTarget and (not LockedTarget.Character or not LockedTarget.Character:FindFirstChild("Humanoid") or LockedTarget.Character.Humanoid.Health <= 0) then
             LockedTarget = GetClosestPlayer()
         end
-        
+
+        -- Jeśli nie mamy zablokowanego celu (bo np. kliknęliśmy w powietrze), spróbuj znaleźć
+        if not LockedTarget then
+             LockedTarget = GetClosestPlayer()
+        end
+
         if LockedTarget and LockedTarget.Character then
             local Part = LockedTarget.Character[_G.AimPart]
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
             
-            -- Strzelanie (usunięto blokadę IsFriend)
+            -- USUNIĘTO BLOKADĘ STRZELANIA DO ZNAJOMYCH (not IsFriend(Target))
             if _G.AutoShoot and IsVisible(Part) then
                 if mouse1click then mouse1click() end
             end
