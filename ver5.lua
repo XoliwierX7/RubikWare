@@ -5,14 +5,13 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
-local LockedTarget = nil -- Zmienna do blokowania celu
 
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
 _G.TeamCheck = false    
-_G.FriendCheck = false   
+_G.FriendCheck = false   -- Domyślnie wyłączone (strzela do znajomych), można zmienić w GUI
 _G.AimPart = "Head" 
-_G.AutoShoot = true     
+_G.AutoShoot = true      
 _G.FOVRadius = 150
 _G.ShowESP = true
 _G.Noclip = false
@@ -65,64 +64,100 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === GUI LISTY GRACZY DLA "BRING" ===
-local BringGui = Instance.new("ScreenGui")
-BringGui.Name = "BringPlayerGui"
-BringGui.ResetOnSpawn = false
-BringGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-BringGui.Enabled = false -- Domyślnie ukryte
+-- === GUI LISTY GRACZY DO TELEPORTACJI (NOWOŚĆ) ===
+local TpGui = Instance.new("ScreenGui")
+TpGui.Name = "TeleportGui"
+TpGui.ResetOnSpawn = false
+TpGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+TpGui.Enabled = false -- Domyślnie ukryte
 
-local BringFrame = Instance.new("Frame", BringGui)
-BringFrame.Size = UDim2.new(0, 250, 0, 350)
-BringFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
-BringFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-BringFrame.BorderSizePixel = 0
+local TpMainFrame = Instance.new("Frame", TpGui)
+TpMainFrame.Size = UDim2.new(0, 250, 0, 350)
+TpMainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+TpMainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TpMainFrame.BorderSizePixel = 2
+TpMainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
 
-local BringTitle = Instance.new("TextLabel", BringFrame)
-BringTitle.Size = UDim2.new(1, 0, 0, 30)
-BringTitle.BackgroundTransparency = 1
-BringTitle.Text = "WYBIERZ GRACZA (BRING)"
-BringTitle.TextColor3 = Color3.new(1,1,1)
-BringTitle.FontFace = CustomFont
+local TpTitle = Instance.new("TextLabel", TpMainFrame)
+TpTitle.Size = UDim2.new(1, 0, 0, 30)
+TpTitle.BackgroundTransparency = 1
+TpTitle.Text = "WYBIERZ GRACZA DO TP"
+TpTitle.TextColor3 = Color3.new(1, 1, 1)
+TpTitle.FontFace = CustomFont
+TpTitle.TextSize = 18
 
-local BringScroll = Instance.new("ScrollingFrame", BringFrame)
-BringScroll.Size = UDim2.new(1, 0, 1, -30)
-BringScroll.Position = UDim2.new(0, 0, 0, 30)
-BringScroll.BackgroundTransparency = 1
-BringScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+-- Przycisk zamykania TP Menu
+local CloseTpBtn = Instance.new("TextButton", TpMainFrame)
+CloseTpBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseTpBtn.Position = UDim2.new(1, -25, 0, 5)
+CloseTpBtn.Text = "X"
+CloseTpBtn.TextColor3 = Color3.new(1, 0, 0)
+CloseTpBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+CloseTpBtn.MouseButton1Click:Connect(function()
+    TpGui.Enabled = false
+end)
 
-local BringLayout = Instance.new("UIListLayout", BringScroll)
-BringLayout.SortOrder = Enum.SortOrder.LayoutOrder
+-- Przycisk Friend Check (Strzelanie do znajomych)
+local FriendCheckBtn = Instance.new("TextButton", TpMainFrame)
+FriendCheckBtn.Size = UDim2.new(1, -10, 0, 25)
+FriendCheckBtn.Position = UDim2.new(0, 5, 0, 30)
+FriendCheckBtn.Text = "FRIEND CHECK: OFF (Strzela)"
+FriendCheckBtn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+FriendCheckBtn.TextColor3 = Color3.new(1, 1, 1)
+FriendCheckBtn.FontFace = CustomFont
+FriendCheckBtn.MouseButton1Click:Connect(function()
+    _G.FriendCheck = not _G.FriendCheck
+    if _G.FriendCheck then
+        FriendCheckBtn.Text = "FRIEND CHECK: ON (Nie strzela)"
+        FriendCheckBtn.BackgroundColor3 = Color3.fromRGB(0, 50, 0)
+    else
+        FriendCheckBtn.Text = "FRIEND CHECK: OFF (Strzela)"
+        FriendCheckBtn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+    end
+end)
 
-local function RefreshBringList()
-    for _, v in pairs(BringScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+local TpScroll = Instance.new("ScrollingFrame", TpMainFrame)
+TpScroll.Size = UDim2.new(1, -10, 1, -65)
+TpScroll.Position = UDim2.new(0, 5, 0, 60)
+TpScroll.BackgroundTransparency = 1
+TpScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local TpLayout = Instance.new("UIListLayout", TpScroll)
+TpLayout.Padding = UDim.new(0, 5)
+TpLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local function RefreshTpList()
+    for _, child in pairs(TpScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            local btn = Instance.new("TextButton", BringScroll)
+            local btn = Instance.new("TextButton", TpScroll)
             btn.Size = UDim2.new(1, 0, 0, 30)
             btn.Text = player.DisplayName .. " (@" .. player.Name .. ")"
             btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-            btn.TextColor3 = Color3.new(1,1,1)
+            btn.TextColor3 = Color3.new(1, 1, 1)
             btn.FontFace = CustomFont
             
             btn.MouseButton1Click:Connect(function()
-                -- Logika teleportacji gracza do siebie
-                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 local targetChar = player.Character
-                local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-                
-                if myRoot and targetRoot then
-                    targetRoot.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3) -- Teleportuje 3 study przed Ciebie
+                local myChar = LocalPlayer.Character
+                if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                    myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 2, 3)
+                    TpGui.Enabled = false
                 end
-                BringGui.Enabled = false -- Zamyka menu po wyborze
             end)
         end
     end
-    BringScroll.CanvasSize = UDim2.new(0, 0, 0, BringLayout.AbsoluteContentSize.Y)
+    TpScroll.CanvasSize = UDim2.new(0, 0, 0, TpLayout.AbsoluteContentSize.Y)
 end
+TpGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+    if TpGui.Enabled then RefreshTpList() end
+end)
 
--- === SYSTEM RADIAL MENU (ZMODYFIKOWANY: 6 OPCJI) ===
+
+-- === SYSTEM RADIAL MENU (POPRAWIONY I ROZSZERZONY) ===
 local RadialGui = Instance.new("ScreenGui")
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
@@ -141,8 +176,8 @@ local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
     Container.Size = UDim2.new(0, 125, 0, 50)
     local rad = math.rad(angle)
-    -- Promień koła
-    Container.Position = UDim2.new(0.5, math.cos(rad) * 140 - 62, 0.5, math.sin(rad) * 140 - 25)
+    -- Ustawienie pozycji na okręgu
+    Container.Position = UDim2.new(0.5, math.cos(rad) * 150 - 62, 0.5, math.sin(rad) * 150 - 25)
     Container.BackgroundTransparency = 1
 
     local Option = Instance.new("TextLabel", Container)
@@ -184,7 +219,7 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 60, Color3.fromRGB(80, 255, 80), "Fl
 local AimBtn = CreateMenuOption("AIM: ON", 120, Color3.fromRGB(80, 80, 255), "Aim")
 local EspBtn = CreateMenuOption("ESP: ON", 180, Color3.fromRGB(255, 255, 80), "Esp")
 local SpawnBtn = CreateMenuOption("TP: SPAWN", 240, Color3.fromRGB(255, 255, 255), "Spawn")
-local BringBtn = CreateMenuOption("BRING PLAYER", 300, Color3.fromRGB(255, 0, 255), "Bring")
+local TpMenuBtn = CreateMenuOption("TP MENU", 300, Color3.fromRGB(255, 0, 255), "TpMenu") -- NOWY PRZYCISK
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -205,6 +240,14 @@ UserInputService.InputEnded:Connect(function(input)
             elseif name == "Fly" then
                 _G.Fly = not _G.Fly
                 HoveredButton.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
+                -- Reset velocity when fly is toggled off
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                   local bv = char.HumanoidRootPart:FindFirstChild("FlyVelocity")
+                   if bv then bv:Destroy() end
+                   local bg = char.HumanoidRootPart:FindFirstChild("FlyGyro")
+                   if bg then bg:Destroy() end
+                end
             elseif name == "Aim" then
                 _G.AimbotEnabled = not _G.AimbotEnabled
                 HoveredButton.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
@@ -217,19 +260,18 @@ UserInputService.InputEnded:Connect(function(input)
                 if root then
                     root.CFrame = CFrame.new(SpawnPos)
                 end
-            elseif name == "Bring" then
-                RefreshBringList()
-                BringGui.Enabled = true
+            elseif name == "TpMenu" then -- OBSŁUGA NOWEGO PRZYCISKU
+                TpGui.Enabled = not TpGui.Enabled
             end
         end
         RadialFrame.Visible = false
-        if not BringGui.Enabled then
+        if not TpGui.Enabled then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
         end
     end
 end)
 
--- === LOGIKA PERSYSTENCJI I FLY (NAPRAWIONE) ===
+-- === LOGIKA PERSYSTENCJI I NOCLIP ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -238,49 +280,45 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-task.spawn(function()
-    while true do
-        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local root = char:WaitForChild("HumanoidRootPart", 5)
+-- === NAPRAWIONY SYSTEM LATANIA (BEZ ZACINANIA) ===
+RunService.Heartbeat:Connect(function()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = LocalPlayer.Character.HumanoidRootPart
+    local bv = root:FindFirstChild("FlyVelocity") or Instance.new("BodyVelocity")
+    local bg = root:FindFirstChild("FlyGyro") or Instance.new("BodyGyro")
+    
+    if _G.Fly then
+        bv.Name = "FlyVelocity"
+        bv.Parent = root
+        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
         
-        if root then
-            -- Tworzymy obiekty fizyki raz, a nie w pętli
-            local bv = Instance.new("BodyVelocity")
-            local bg = Instance.new("BodyGyro")
-            bv.MaxForce = Vector3.new(0,0,0) -- Domyślnie wyłączone
-            bg.MaxTorque = Vector3.new(0,0,0)
-            bv.Parent = root
-            bg.Parent = root
-            
-            while char.Parent == workspace do
-                if _G.Fly then
-                    bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-                    bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-                    
-                    bg.CFrame = Camera.CFrame
-                    
-                    local dir = Vector3.new(0,0,0)
-                    -- Resetujemy wektor ruchu w każdej klatce, żeby postać nie leciała sama
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += Camera.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= Camera.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= Camera.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += Camera.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0, 1, 0) end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0, 1, 0) end
-                    
-                    bv.Velocity = (dir.Magnitude > 0) and (dir.Unit * FlySpeed) or Vector3.new(0,0,0)
-                else
-                    bv.MaxForce = Vector3.new(0,0,0)
-                    bg.MaxTorque = Vector3.new(0,0,0)
-                end
-                task.wait() -- Krótkie opóźnienie dla pętli
-            end
+        bg.Name = "FlyGyro"
+        bg.Parent = root
+        bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        bg.CFrame = Camera.CFrame
+        
+        local dir = Vector3.new(0,0,0)
+        -- Sprawdzanie klawiszy bezpośrednio (naprawia zacinanie)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
+        
+        if dir.Magnitude > 0 then
+            bv.Velocity = dir.Unit * FlySpeed
+        else
+            bv.Velocity = Vector3.new(0, 0, 0) -- Natychmiastowe zatrzymanie
         end
-        task.wait(1)
+    else
+        if root:FindFirstChild("FlyVelocity") then root.FlyVelocity:Destroy() end
+        if root:FindFirstChild("FlyGyro") then root.FlyGyro:Destroy() end
     end
 end)
 
--- === LISTA GRACZY (PlayerList) ===
+-- === LISTA GRACZY (PlayerList) - BEZ ZMIAN ===
 local PlayerListGui = Instance.new("ScreenGui")
 PlayerListGui.Name = "CustomPlayerList"
 PlayerListGui.ResetOnSpawn = false
@@ -375,7 +413,7 @@ Players.PlayerAdded:Connect(RefreshList)
 Players.PlayerRemoving:Connect(RefreshList)
 task.spawn(RefreshList)
 
--- === ESP LOGIKA ===
+-- === ESP LOGIKA (Działa jak wcześniej) ===
 local function IsFriend(Player)
     if _G.FriendCheck then return LocalPlayer:IsFriendsWith(Player.UserId) end
     return false
@@ -463,7 +501,7 @@ end
 for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
 Players.PlayerAdded:Connect(CreateESP)
 
--- === AIMBOT LOGIKA (NAPRAWIONY TARGET LOCK) ===
+-- === AIMBOT LOGIKA (POPRAWIONA) ===
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Transparency = 0.6
@@ -473,11 +511,11 @@ local function GetClosestPlayer()
     local MaximumDistance = _G.FOVRadius
     local Target = nil
     for _, v in next, Players:GetPlayers() do
+        -- Poprawiona logika friend check - jeśli _G.FriendCheck jest true, to pomija przyjaciół.
+        -- Jeśli jest false (domyślnie), to strzela do nich.
         if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.AimPart) then
             if _G.TeamCheck and v.Team == LocalPlayer.Team then continue end
-            -- USUNIĘTO FRIEND CHECK, ŻEBY MOŻNA BYŁO CELOWAĆ W ZNAJOMYCH
-            -- if _G.FriendCheck and IsFriend(v) then continue end 
-            
+            if _G.FriendCheck and IsFriend(v) then continue end -- To pozwala strzelać do znajomych jeśli FriendCheck jest OFF
             local Hum = v.Character:FindFirstChildOfClass("Humanoid")
             if Hum and Hum.Health > 0 then
                 local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(v.Character[_G.AimPart].Position)
@@ -495,46 +533,26 @@ local function GetClosestPlayer()
     return Target
 end
 
-UserInputService.InputBegan:Connect(function(Input, Processed)
-    if Processed then return end
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then 
-        Holding = true
-        LockedTarget = GetClosestPlayer() -- Blokujemy cel w momencie kliknięcia
-    elseif Input.KeyCode == Enum.KeyCode.P then 
-        _G.AutoShoot = not _G.AutoShoot 
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton2 then 
-        Holding = false 
-        LockedTarget = nil -- Czyścimy cel po puszczeniu
-    end
-end)
-
 RunService.RenderStepped:Connect(function()
     FOVCircle.Visible = true
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = _G.FOVRadius
     
-    if Holding and _G.AimbotEnabled then
-        -- Jeśli zablokowany cel zniknął lub umarł, spróbuj znaleźć nowego
-        if LockedTarget and (not LockedTarget.Character or not LockedTarget.Character:FindFirstChild("Humanoid") or LockedTarget.Character.Humanoid.Health <= 0) then
-            LockedTarget = GetClosestPlayer()
-        end
-
-        -- Jeśli nie mamy zablokowanego celu (bo np. kliknęliśmy w powietrze), spróbuj znaleźć
-        if not LockedTarget then
-             LockedTarget = GetClosestPlayer()
-        end
-
-        if LockedTarget and LockedTarget.Character then
-            local Part = LockedTarget.Character[_G.AimPart]
+    -- Naprawa blokowania aimbota: Sprawdzamy stan przycisku na żywo zamiast polegać na zmiennej
+    local isAiming = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    
+    if isAiming and _G.AimbotEnabled then
+        local Target = GetClosestPlayer()
+        if Target and Target.Character then
+            local Part = Target.Character[_G.AimPart]
+            -- Ustawianie kamery
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
             
-            -- USUNIĘTO BLOKADĘ STRZELANIA DO ZNAJOMYCH (not IsFriend(Target))
             if _G.AutoShoot and IsVisible(Part) then
-                if mouse1click then mouse1click() end
+                -- Opcjonalne: sprawdzanie znajomych jeszcze raz przy strzale
+                if not (_G.FriendCheck and IsFriend(Target)) then
+                     if mouse1click then mouse1click() end
+                end
             end
         end
     end
