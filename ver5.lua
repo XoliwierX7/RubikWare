@@ -16,6 +16,7 @@ _G.FOVRadius = 150
 _G.ShowESP = true
 _G.Noclip = false
 _G.Fly = false
+_G.TpMode = "Goto" -- "Goto" (ja do niego) lub "Bring" (on do mnie)
 local FlySpeed = 75 
 local SpawnPos = Vector3.new(103.3, -679.5, 1181.8) -- Współrzędne spawna
 
@@ -64,7 +65,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === GUI LISTY GRACZY DO TELEPORTACJI (NOWOŚĆ) ===
+-- === GUI LISTY GRACZY DO TELEPORTACJI (ZMODYFIKOWANE) ===
 local TpGui = Instance.new("ScreenGui")
 TpGui.Name = "TeleportGui"
 TpGui.ResetOnSpawn = false
@@ -72,8 +73,8 @@ TpGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 TpGui.Enabled = false -- Domyślnie ukryte
 
 local TpMainFrame = Instance.new("Frame", TpGui)
-TpMainFrame.Size = UDim2.new(0, 250, 0, 350)
-TpMainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+TpMainFrame.Size = UDim2.new(0, 250, 0, 400) -- Zwiększono wysokość, żeby zmieścić przyciski
+TpMainFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
 TpMainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 TpMainFrame.BorderSizePixel = 2
 TpMainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
@@ -81,7 +82,7 @@ TpMainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
 local TpTitle = Instance.new("TextLabel", TpMainFrame)
 TpTitle.Size = UDim2.new(1, 0, 0, 30)
 TpTitle.BackgroundTransparency = 1
-TpTitle.Text = "WYBIERZ GRACZA DO TP"
+TpTitle.Text = "MENU TELEPORTACJI"
 TpTitle.TextColor3 = Color3.new(1, 1, 1)
 TpTitle.FontFace = CustomFont
 TpTitle.TextSize = 18
@@ -97,7 +98,7 @@ CloseTpBtn.MouseButton1Click:Connect(function()
     TpGui.Enabled = false
 end)
 
--- Przycisk Friend Check (Strzelanie do znajomych)
+-- Przycisk Friend Check
 local FriendCheckBtn = Instance.new("TextButton", TpMainFrame)
 FriendCheckBtn.Size = UDim2.new(1, -10, 0, 25)
 FriendCheckBtn.Position = UDim2.new(0, 5, 0, 30)
@@ -116,9 +117,29 @@ FriendCheckBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- NOWY PRZYCISK: WYBÓR TRYBU TP (GOTO / BRING)
+local TpModeBtn = Instance.new("TextButton", TpMainFrame)
+TpModeBtn.Size = UDim2.new(1, -10, 0, 25)
+TpModeBtn.Position = UDim2.new(0, 5, 0, 60)
+TpModeBtn.Text = "MODE: ME -> THEM (GOTO)"
+TpModeBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+TpModeBtn.TextColor3 = Color3.new(1, 1, 1)
+TpModeBtn.FontFace = CustomFont
+TpModeBtn.MouseButton1Click:Connect(function()
+    if _G.TpMode == "Goto" then
+        _G.TpMode = "Bring"
+        TpModeBtn.Text = "MODE: THEM -> ME (BRING)"
+        TpModeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+    else
+        _G.TpMode = "Goto"
+        TpModeBtn.Text = "MODE: ME -> THEM (GOTO)"
+        TpModeBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+    end
+end)
+
 local TpScroll = Instance.new("ScrollingFrame", TpMainFrame)
-TpScroll.Size = UDim2.new(1, -10, 1, -65)
-TpScroll.Position = UDim2.new(0, 5, 0, 60)
+TpScroll.Size = UDim2.new(1, -10, 1, -95) -- Zmniejszono, bo doszedł przycisk
+TpScroll.Position = UDim2.new(0, 5, 0, 90)
 TpScroll.BackgroundTransparency = 1
 TpScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 
@@ -143,8 +164,15 @@ local function RefreshTpList()
             btn.MouseButton1Click:Connect(function()
                 local targetChar = player.Character
                 local myChar = LocalPlayer.Character
+                
                 if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                    myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 2, 3)
+                    if _G.TpMode == "Goto" then
+                        -- JA DO NIEGO
+                        myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 2, 3)
+                    elseif _G.TpMode == "Bring" then
+                        -- ON DO MNIE (Uwaga: Może nie działać na wszystkich serwerach przez FE)
+                        targetChar.HumanoidRootPart.CFrame = myChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                    end
                     TpGui.Enabled = false
                 end
             end)
@@ -219,7 +247,7 @@ local FlyBtn = CreateMenuOption("FLY: OFF", 60, Color3.fromRGB(80, 255, 80), "Fl
 local AimBtn = CreateMenuOption("AIM: ON", 120, Color3.fromRGB(80, 80, 255), "Aim")
 local EspBtn = CreateMenuOption("ESP: ON", 180, Color3.fromRGB(255, 255, 80), "Esp")
 local SpawnBtn = CreateMenuOption("TP: SPAWN", 240, Color3.fromRGB(255, 255, 255), "Spawn")
-local TpMenuBtn = CreateMenuOption("TP MENU", 300, Color3.fromRGB(255, 0, 255), "TpMenu") -- NOWY PRZYCISK
+local TpMenuBtn = CreateMenuOption("TP MENU", 300, Color3.fromRGB(255, 0, 255), "TpMenu") -- PRZYCISK MENU TP
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -260,7 +288,7 @@ UserInputService.InputEnded:Connect(function(input)
                 if root then
                     root.CFrame = CFrame.new(SpawnPos)
                 end
-            elseif name == "TpMenu" then -- OBSŁUGA NOWEGO PRZYCISKU
+            elseif name == "TpMenu" then
                 TpGui.Enabled = not TpGui.Enabled
             end
         end
