@@ -9,7 +9,7 @@ local Holding = false
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
 _G.TeamCheck = false    
-_G.FriendCheck = false   -- Domyślnie wyłączone (strzela do znajomych), można zmienić w GUI
+_G.FriendCheck = true   -- Domyślnie wyłączone (strzela do znajomych), można zmienić w GUI
 _G.AimPart = "Head" 
 _G.AutoShoot = true      
 _G.FOVRadius = 150
