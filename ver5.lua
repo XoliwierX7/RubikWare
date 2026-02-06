@@ -17,6 +17,7 @@ _G.ShowESP = true
 _G.Noclip = false
 _G.Fly = false
 local FlySpeed = 75 
+local SpawnPos = Vector3.new(103.3, -679.5, 1181.8) -- Współrzędne spawna
 
 -- KONFIGURACJA CZCIONKI
 local CustomFont = Font.new(
@@ -25,7 +26,7 @@ local CustomFont = Font.new(
     Enum.FontStyle.Normal
 )
 
--- === NOWY HUD POZYCJI (LEWY DOLNY RÓG) ===
+-- === HUD POZYCJI (LEWY DOLNY RÓG) ===
 local PosGui = Instance.new("ScreenGui")
 PosGui.Name = "PositionHUD"
 PosGui.ResetOnSpawn = false
@@ -33,7 +34,7 @@ PosGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local PosFrame = Instance.new("Frame")
 PosFrame.Size = UDim2.new(0, 220, 0, 35)
-PosFrame.Position = UDim2.new(0, 10, 1, -45) -- Lewy dolny róg
+PosFrame.Position = UDim2.new(0, 10, 1, -45)
 PosFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 PosFrame.BackgroundTransparency = 0.5
 PosFrame.BorderSizePixel = 0
@@ -63,7 +64,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- === SYSTEM RADIAL MENU (POPRAWIONE WYKRYWANIE) ===
+-- === SYSTEM RADIAL MENU (Z DODANYM SPAWNEM) ===
 local RadialGui = Instance.new("ScreenGui")
 RadialGui.Name = "RadialMenuGui"
 RadialGui.IgnoreGuiInset = true
@@ -80,9 +81,10 @@ local HoveredButton = nil
 
 local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
-    Container.Size = UDim2.new(0, 120, 0, 50)
+    Container.Size = UDim2.new(0, 125, 0, 50)
     local rad = math.rad(angle)
-    Container.Position = UDim2.new(0.5, math.cos(rad) * 130 - 60, 0.5, math.sin(rad) * 130 - 25)
+    -- Zwiększyłem promień do 140, żeby 5 przycisków miało więcej miejsca
+    Container.Position = UDim2.new(0.5, math.cos(rad) * 140 - 62, 0.5, math.sin(rad) * 140 - 25)
     Container.BackgroundTransparency = 1
 
     local Option = Instance.new("TextLabel", Container)
@@ -92,7 +94,7 @@ local function CreateMenuOption(name, angle, color, actionName)
     Option.Text = name
     Option.TextColor3 = Color3.new(1, 1, 1)
     Option.FontFace = CustomFont
-    Option.TextSize = 15
+    Option.TextSize = 14
     Option.Name = actionName
     Option.Active = true 
 
@@ -118,10 +120,12 @@ local function CreateMenuOption(name, angle, color, actionName)
     return Option
 end
 
+-- Rozmieszczenie 5 przycisków co 72 stopnie
 local NoclipBtn = CreateMenuOption("NOCLIP: OFF", 0, Color3.fromRGB(255, 80, 80), "Noclip")
-local FlyBtn = CreateMenuOption("FLY: OFF", 90, Color3.fromRGB(80, 255, 80), "Fly")
-local AimBtn = CreateMenuOption("AIM: ON", 180, Color3.fromRGB(80, 80, 255), "Aim")
-local EspBtn = CreateMenuOption("ESP: ON", 270, Color3.fromRGB(255, 255, 80), "Esp")
+local FlyBtn = CreateMenuOption("FLY: OFF", 72, Color3.fromRGB(80, 255, 80), "Fly")
+local AimBtn = CreateMenuOption("AIM: ON", 144, Color3.fromRGB(80, 80, 255), "Aim")
+local EspBtn = CreateMenuOption("ESP: ON", 216, Color3.fromRGB(255, 255, 80), "Esp")
+local SpawnBtn = CreateMenuOption("TP: SPAWN", 288, Color3.fromRGB(255, 255, 255), "Spawn")
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -135,18 +139,25 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Y then
         if HoveredButton then
-            if HoveredButton.Name == "Noclip" then
+            local name = HoveredButton.Name
+            if name == "Noclip" then
                 _G.Noclip = not _G.Noclip
                 HoveredButton.Text = "NOCLIP: " .. (_G.Noclip and "ON" or "OFF")
-            elseif HoveredButton.Name == "Fly" then
+            elseif name == "Fly" then
                 _G.Fly = not _G.Fly
                 HoveredButton.Text = "FLY: " .. (_G.Fly and "ON" or "OFF")
-            elseif HoveredButton.Name == "Aim" then
+            elseif name == "Aim" then
                 _G.AimbotEnabled = not _G.AimbotEnabled
                 HoveredButton.Text = "AIM: " .. (_G.AimbotEnabled and "ON" or "OFF")
-            elseif HoveredButton.Name == "Esp" then
+            elseif name == "Esp" then
                 _G.ShowESP = not _G.ShowESP
                 HoveredButton.Text = "ESP: " .. (_G.ShowESP and "ON" or "OFF")
+            elseif name == "Spawn" then
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = CFrame.new(SpawnPos)
+                end
             end
         end
         RadialFrame.Visible = false
@@ -154,7 +165,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- === LOGIKA PERSYSTENCJI I NOCLIP ===
+-- === LOGIKA PERSYSTENCJI I FLY ===
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -163,7 +174,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- === POPRAWIONA LOGIKA FLY ===
 task.spawn(function()
     while true do
         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -198,7 +208,7 @@ task.spawn(function()
     end
 end)
 
--- === LISTA GRACZY ===
+-- === LISTA GRACZY (PlayerList) ===
 local PlayerListGui = Instance.new("ScreenGui")
 PlayerListGui.Name = "CustomPlayerList"
 PlayerListGui.ResetOnSpawn = false
