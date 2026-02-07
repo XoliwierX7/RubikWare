@@ -569,6 +569,50 @@ end
 for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
 Players.PlayerAdded:Connect(CreateESP)
 
+-- === TARGET HITBOX (SHOOTING RANGE) ===
+task.spawn(function()
+    local FolderName = "ShootingRangeEntities"
+    local TargetName = "Target"
+    local TargetImage = "rbxassetid://14580701813"
+    local TargetRot = 45
+
+    while true do
+        local folder = workspace:FindFirstChild(FolderName)
+        if folder then
+            for _, model in pairs(folder:GetChildren()) do
+                if model.Name == TargetName then
+                    local root = model:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        -- Check for Billboard/Image combo
+                        local bg = root:FindFirstChild("BillboardGui")
+                        local img = bg and bg:FindFirstChild("ImageLabel")
+
+                        if img and img.Image == TargetImage and math.abs(img.Rotation - TargetRot) < 1 then
+                            -- Add Hitbox if missing
+                            if not root:FindFirstChild("TargetHitbox") then
+                                local box = Instance.new("BoxHandleAdornment")
+                                box.Name = "TargetHitbox"
+                                box.Adornee = root
+                                box.Size = root.Size + Vector3.new(0.5, 0.5, 0.5) -- Slightly bigger
+                                box.Color3 = Color3.fromRGB(255, 0, 0)
+                                box.Transparency = 0.4
+                                box.AlwaysOnTop = true
+                                box.ZIndex = 10
+                                box.Parent = root
+                            end
+                        else
+                            -- Remove if condition no longer met (optional)
+                            local existing = root:FindFirstChild("TargetHitbox")
+                            if existing then existing:Destroy() end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.5) -- Refresh loop
+    end
+end)
+
 -- === AIMBOT LOGIKA ===
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
@@ -619,57 +663,3 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
--- === NOWE: TARGET HITBOX ESP (SHOOTING RANGE) ===
--- Szuka w: workspace.ShootingRangeEntities
--- Model musi mieć nazwę "Target"
--- Warunek: HumanoidRootPart -> BillboardGui -> ImageLabel (Image: rbxassetid://14580701813, Rotation: 45)
-
-local ShootingRangeFolder = workspace:WaitForChild("ShootingRangeEntities", 5) 
-
-local function AddTargetHitbox(model)
-    task.wait(0.5) -- Czekamy chwilę na załadowanie dzieci
-    
-    -- Sprawdzanie struktury
-    local root = model:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    local bb = root:FindFirstChild("BillboardGui")
-    if not bb then return end
-    
-    local img = bb:FindFirstChild("ImageLabel")
-    if not img then return end
-    
-    -- Sprawdzanie warunku (AssetID i Rotacja 45)
-    if img.Image == "rbxassetid://14580701813" and math.abs(img.Rotation - 45) < 1 then
-        -- Jeśli hitbox już istnieje, nie dodawaj
-        if root:FindFirstChild("TargetHitbox") then return end
-        
-        -- Tworzenie Hitboxa (Czerwona kostka)
-        local box = Instance.new("BoxHandleAdornment")
-        box.Name = "TargetHitbox"
-        box.Adornee = root
-        box.Size = root.Size + Vector3.new(0.5, 0.5, 0.5) -- Trochę większy od root parta
-        box.Parent = root
-        box.AlwaysOnTop = true
-        box.ZIndex = 10
-        box.Transparency = 0.5
-        box.Color3 = Color3.fromRGB(255, 0, 0) -- Czerwony
-    end
-end
-
-if ShootingRangeFolder then
-    -- Sprawdź istniejące
-    for _, child in pairs(ShootingRangeFolder:GetChildren()) do
-        if child.Name == "Target" then
-            AddTargetHitbox(child)
-        end
-    end
-    
-    -- Sprawdź nowe (gdy się respawnują)
-    ShootingRangeFolder.ChildAdded:Connect(function(child)
-        if child.Name == "Target" then
-            AddTargetHitbox(child)
-        end
-    end)
-end
