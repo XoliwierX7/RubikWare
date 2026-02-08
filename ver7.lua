@@ -5,10 +5,11 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
+local CursorReleased = false -- Zmienna dla CapsLocka
 
 -- === OPTYMALIZACJA I CZYSZCZENIE (NOWE) ===
 -- Usuwa stare GUI i połączenia, aby nie obciążać pamięci RAM przy ponownym włączeniu
-local GuisToDelete = {"PositionHUD", "TeleportGui", "RadialMenuGui", "CustomPlayerList"}
+local GuisToDelete = {"PositionHUD", "TeleportGui", "RadialMenuGui", "CustomPlayerList", "KeybindsGui"}
 for _, guiName in pairs(GuisToDelete) do
     if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(guiName) then
         LocalPlayer.PlayerGui[guiName]:Destroy()
@@ -60,7 +61,7 @@ task.spawn(function()
     end
 end)
 
--- === HUD POZYCJI ===
+-- === HUD POZYCJI (ZMODYFIKOWANA POZYCJA) ===
 local PosGui = Instance.new("ScreenGui")
 PosGui.Name = "PositionHUD"
 PosGui.ResetOnSpawn = false
@@ -68,7 +69,8 @@ PosGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local PosFrame = Instance.new("Frame")
 PosFrame.Size = UDim2.new(0, 220, 0, 35)
-PosFrame.Position = UDim2.new(0, 10, 1, -45)
+-- ZMIANA: Przeniesiono na górę ekranu (Top Center), aby nie zasłaniać Keybinds
+PosFrame.Position = UDim2.new(0.5, -110, 0, 10) 
 PosFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 PosFrame.BackgroundTransparency = 0.5
 PosFrame.BorderSizePixel = 0
@@ -280,6 +282,21 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         UserInputService.MouseBehavior = Enum.MouseBehavior.None
         UserInputService.MouseIconEnabled = true
     end
+    
+    -- === LOGIKA CAPSLOCK (CURSOR RELEASE) ===
+    if input.KeyCode == Enum.KeyCode.CapsLock then
+        CursorReleased = not CursorReleased
+        if CursorReleased then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.None
+            UserInputService.MouseIconEnabled = true
+        else
+            -- Blokuj tylko jeśli radial menu nie jest otwarte
+            if not RadialFrame.Visible and not TpGui.Enabled then
+                UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                UserInputService.MouseIconEnabled = false
+            end
+        end
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -320,7 +337,8 @@ UserInputService.InputEnded:Connect(function(input)
             end
         end
         RadialFrame.Visible = false
-        if not TpGui.Enabled then
+        -- Przywróć blokadę kursora tylko jeśli CapsLock (CursorReleased) jest OFF
+        if not TpGui.Enabled and not CursorReleased then
             UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
         end
     end
@@ -675,3 +693,150 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- === NOWE GUI (KEYBINDS) ===
+local KeybindsGui = Instance.new("ScreenGui")
+KeybindsGui.Name = "KeybindsGui"
+KeybindsGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+KeybindsGui.ResetOnSpawn = false
+
+-- Rw Frame (Kontener główny)
+local rw = Instance.new("Frame")
+rw.Name = "rw"
+rw.Parent = KeybindsGui
+rw.AnchorPoint = Vector2.new(0, 1)
+rw.BackgroundTransparency = 1
+rw.Position = UDim2.new(0, 0, 1, 0)
+rw.Size = UDim2.new(1, 0, 1, 0)
+
+-- Keybinds Frame (Tło paska)
+local keybinds = Instance.new("Frame")
+keybinds.Name = "keybinds"
+keybinds.Parent = rw
+keybinds.BackgroundColor3 = Color3.fromRGB(18, 18, 21)
+keybinds.BackgroundTransparency = 0.08
+keybinds.Position = UDim2.new(0.005, 0, 0.97, -12)
+keybinds.Size = UDim2.new(-0.053, 309, 0.044, 0)
+
+local uicorner = Instance.new("UICorner")
+uicorner.Name = "uicorner"
+uicorner.CornerRadius = UDim.new(1, 0)
+uicorner.Parent = keybinds
+
+-- Key Frame (Kontener elementów)
+local key = Instance.new("Frame")
+key.Name = "key"
+key.Parent = keybinds
+key.BackgroundTransparency = 1
+key.Position = UDim2.new(0, 0, 0, 0)
+key.Size = UDim2.new(1.3, 37, 1, 0)
+
+-- F1 (Radial Menu Section)
+local f1 = Instance.new("Frame")
+f1.Name = "f1"
+f1.Parent = key
+f1.AnchorPoint = Vector2.new(0.5, 0.5)
+f1.BackgroundTransparency = 1
+f1.Position = UDim2.new(0.22, 0, 0.5, 0)
+f1.Size = UDim2.new(0.44, 0, 1, 0)
+
+local keyy_f1 = Instance.new("Frame")
+keyy_f1.Name = "keyy"
+keyy_f1.Parent = f1
+keyy_f1.AnchorPoint = Vector2.new(0.5, 0.5)
+keyy_f1.BackgroundTransparency = 1
+keyy_f1.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyy_f1.Size = UDim2.new(0, 16, 0, 16)
+
+local img_f1 = Instance.new("ImageLabel")
+img_f1.Name = "imagelabel"
+img_f1.Parent = keyy_f1
+img_f1.AnchorPoint = Vector2.new(0.5, 0.5)
+img_f1.BackgroundTransparency = 1
+img_f1.BorderColor3 = Color3.fromRGB(27, 42, 53)
+img_f1.BorderSizePixel = 1
+img_f1.Position = UDim2.new(1.625, 0, 0.5, 0)
+img_f1.Size = UDim2.new(0, 16, 0, 16)
+img_f1.Image = "rbxassetid://16491694294"
+
+local txt_f1 = Instance.new("TextLabel")
+txt_f1.Name = "textlabel"
+txt_f1.Parent = img_f1
+txt_f1.AnchorPoint = Vector2.new(0.5, 0.5)
+txt_f1.BackgroundTransparency = 1
+txt_f1.Position = UDim2.new(0.5, 0, 0.35, 0)
+txt_f1.Size = UDim2.new(0.7, 0, 0.7, 0)
+txt_f1.TextScaled = true
+txt_f1.TextWrapped = true
+txt_f1.Text = "Y"
+txt_f1.TextColor3 = Color3.fromRGB(255, 255, 255)
+txt_f1.FontFace = CustomFont
+
+local title_f1 = Instance.new("TextLabel")
+title_f1.Name = "title"
+title_f1.Parent = keyy_f1
+title_f1.AnchorPoint = Vector2.new(0.5, 0.5)
+title_f1.BackgroundTransparency = 1
+title_f1.Position = UDim2.new(0.324, 0, 0.5, 0)
+title_f1.Size = UDim2.new(0.5, 0, 0.5, 0)
+title_f1.TextScaled = true
+title_f1.TextWrapped = true
+title_f1.TextTransparency = 0.25
+title_f1.Text = "Radial Menu"
+title_f1.TextColor3 = Color3.fromRGB(255, 255, 255)
+title_f1.FontFace = CustomFont
+
+-- F2 (Cursor Release Section - CapsLock)
+local f2 = Instance.new("Frame")
+f2.Name = "f2"
+f2.Parent = key
+f2.AnchorPoint = Vector2.new(0.5, 0.5)
+f2.BackgroundTransparency = 1
+f2.Position = UDim2.new(0.489, 0, 0.5, 0)
+f2.Size = UDim2.new(0.401, 0, 1, 0)
+
+local keyy_f2 = Instance.new("Frame")
+keyy_f2.Name = "keyy"
+keyy_f2.Parent = f2
+keyy_f2.AnchorPoint = Vector2.new(0.5, 0.5)
+keyy_f2.BackgroundTransparency = 1
+keyy_f2.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyy_f2.Size = UDim2.new(0, 16, 0, 16)
+
+local img_f2 = Instance.new("ImageLabel")
+img_f2.Name = "imagelabel"
+img_f2.Parent = keyy_f2
+img_f2.AnchorPoint = Vector2.new(0.5, 0.5)
+img_f2.BackgroundTransparency = 1
+img_f2.BorderColor3 = Color3.fromRGB(27, 42, 53)
+img_f2.BorderSizePixel = 1
+img_f2.Position = UDim2.new(2.75, 0, 0.5, 0)
+img_f2.Size = UDim2.new(0, 34, 0, 16)
+img_f2.Image = "rbxassetid://16491693870"
+
+local txt_f2 = Instance.new("TextLabel")
+txt_f2.Name = "textlabel"
+txt_f2.Parent = img_f2
+txt_f2.AnchorPoint = Vector2.new(0.5, 0.5)
+txt_f2.BackgroundTransparency = 1
+txt_f2.Position = UDim2.new(0.5, 0, 0.35, 0)
+txt_f2.Size = UDim2.new(0.8, 0, 0.8, 0)
+txt_f2.TextScaled = true
+txt_f2.TextWrapped = true
+txt_f2.TextTransparency = 0.25
+txt_f2.Text = "CapsLk"
+txt_f2.TextColor3 = Color3.fromRGB(255, 255, 255)
+txt_f2.FontFace = CustomFont
+
+local title_f2 = Instance.new("TextLabel")
+title_f2.Name = "title"
+title_f2.Parent = keyy_f2
+title_f2.AnchorPoint = Vector2.new(0.5, 0.5)
+title_f2.BackgroundTransparency = 1
+title_f2.Position = UDim2.new(0.324, 0, 0.5, 0)
+title_f2.Size = UDim2.new(0.5, 0, 0.5, 0)
+title_f2.TextScaled = true
+title_f2.TextWrapped = true
+title_f2.Text = "Cursor Release"
+title_f2.TextColor3 = Color3.fromRGB(255, 255, 255)
+title_f2.FontFace = CustomFont
