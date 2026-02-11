@@ -4,11 +4,11 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
 local LocalPlayer = Players.LocalPlayer
 local Holding = false
 
--- === OPTYMALIZACJA I CZYSZCZENIE (NOWE) ===
--- Usuwa stare GUI i połączenia, aby nie obciążać pamięci RAM przy ponownym włączeniu
+-- === OPTYMALIZACJA I CZYSZCZENIE ===
 local GuisToDelete = {"PositionHUD", "TeleportGui", "RadialMenuGui", "CustomPlayerList", "GlobalMessageGui", "GlobalNotification"}
 for _, guiName in pairs(GuisToDelete) do
     if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(guiName) then
@@ -19,7 +19,7 @@ end
 -- === USTAWIENIA ===
 _G.AimbotEnabled = true
 _G.TeamCheck = false    
-_G.FriendCheck = false   
+_G.FriendCheck = true   
 _G.AimPart = "Head" 
 _G.AutoShoot = true      
 _G.FOVRadius = 150
@@ -30,19 +30,18 @@ _G.Fly = false
 _G.SpeedEnabled = false 
 _G.SpeedValue = 100     
 _G.TpMode = "Goto" 
-_G.Invisible = false -- NOWE USTAWIENIE
+_G.Invisible = false
 local FlySpeed = 75 
 local SpawnPos = Vector3.new(103.3, -679.5, 1181.8) 
 
--- === KONFIGURACJA CZCIONKI (ZMIENIONA) ===
+-- === KONFIGURACJA CZCIONKI ===
 local CustomFont = Font.new(
     "rbxassetid://12187365977", 
     Enum.FontWeight.Medium, 
     Enum.FontStyle.Normal
 )
 
--- === OPTYMALIZACJA RAYCAST (CACHE) ===
--- Definiujemy parametry raz, zamiast tworzyć je w każdej klatce (ogromny zysk FPS)
+-- === OPTYMALIZACJA RAYCAST ===
 local RayParams = RaycastParams.new()
 RayParams.FilterType = Enum.RaycastFilterType.Exclude
 RayParams.IgnoreWater = true
@@ -50,14 +49,16 @@ RayParams.IgnoreWater = true
 -- === HEALTH HACK (1000 HP) ===
 task.spawn(function()
     while true do
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            if hum.MaxHealth ~= 1000 then
-                hum.MaxHealth = 1000
-                hum.Health = 1000
+        pcall(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                if hum.MaxHealth ~= 1000 then
+                    hum.MaxHealth = 1000
+                    hum.Health = 1000
+                end
             end
-        end
+        end)
         task.wait(1)
     end
 end)
@@ -211,7 +212,7 @@ TpGui:GetPropertyChangedSignal("Enabled"):Connect(function()
     if TpGui.Enabled then RefreshTpList() end
 end)
 
--- === GLOBAL MESSAGE GUI (NOWE) ===
+-- === SYSTEM WIADOMOŚCI GLOBALNEJ (NOWE) ===
 local GlobalMsgGui = Instance.new("ScreenGui")
 GlobalMsgGui.Name = "GlobalMessageGui"
 GlobalMsgGui.ResetOnSpawn = false
@@ -219,38 +220,69 @@ GlobalMsgGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 GlobalMsgGui.Enabled = false
 
 local GlobalFrame = Instance.new("Frame", GlobalMsgGui)
-GlobalFrame.Size = UDim2.new(0, 400, 0, 100)
+GlobalFrame.Size = UDim2.new(0, 400, 0, 110)
 GlobalFrame.Position = UDim2.new(0.5, -200, 0.3, 0)
 GlobalFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 GlobalFrame.BorderSizePixel = 2
-GlobalFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+GlobalFrame.BorderColor3 = Color3.fromRGB(255, 0, 255)
 
 local GlobalTitle = Instance.new("TextLabel", GlobalFrame)
-GlobalTitle.Text = "WPISZ WIADOMOŚĆ (GLOBAL MESSAGE)"
+GlobalTitle.Text = "WPISZ WIADOMOŚĆ"
 GlobalTitle.Size = UDim2.new(1, 0, 0, 30)
 GlobalTitle.TextColor3 = Color3.new(1, 1, 1)
 GlobalTitle.BackgroundTransparency = 1
 GlobalTitle.FontFace = CustomFont
 
+local GlobalDesc = Instance.new("TextLabel", GlobalFrame)
+GlobalDesc.Text = "(Wciśnij Enter aby wysłać na czat i pokazać GUI)"
+GlobalDesc.Size = UDim2.new(1, 0, 0, 20)
+GlobalDesc.Position = UDim2.new(0, 0, 0, 25)
+GlobalDesc.TextColor3 = Color3.fromRGB(150, 150, 150)
+GlobalDesc.BackgroundTransparency = 1
+GlobalDesc.FontFace = CustomFont
+GlobalDesc.TextSize = 12
+
 local GlobalInput = Instance.new("TextBox", GlobalFrame)
 GlobalInput.Size = UDim2.new(0.9, 0, 0, 40)
-GlobalInput.Position = UDim2.new(0.05, 0, 0.4, 0)
+GlobalInput.Position = UDim2.new(0.05, 0, 0.5, 0)
 GlobalInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 GlobalInput.TextColor3 = Color3.new(1, 1, 1)
 GlobalInput.Text = ""
-GlobalInput.PlaceholderText = "Wpisz tekst i wciśnij Enter..."
+GlobalInput.PlaceholderText = "Tu wpisz tekst..."
 GlobalInput.FontFace = CustomFont
 
--- Funkcja wyświetlająca powiadomienie (Symulacja dla Ciebie + Czat dla innych)
+-- Funkcja do wysyłania na czat (Obsługuje stary i nowy czat)
+local function SendChatMessage(text)
+    local Success = false
+    -- Próba 1: Nowy TextChatService
+    if TextChatService and TextChatService.TextChannels then
+        local General = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if General then
+            General:SendAsync(text)
+            Success = true
+        end
+    end
+    -- Próba 2: Stary ReplicatedStorage
+    if not Success then
+        local ChatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        local SayMsg = ChatEvents and ChatEvents:FindFirstChild("SayMessageRequest")
+        if SayMsg then
+            SayMsg:FireServer(text, "All")
+            Success = true
+        end
+    end
+end
+
+-- Funkcja wyświetlająca powiadomienie (Symulacja dla Ciebie)
 local function DisplayNotification(text)
-    -- 1. Wyświetl GUI u Ciebie (Symulacja)
+    -- Wyświetl GUI lokalnie
     local NotifGui = Instance.new("ScreenGui")
     NotifGui.Name = "GlobalNotification"
     NotifGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     local Banner = Instance.new("Frame", NotifGui)
     Banner.Size = UDim2.new(0, 400, 0, 80)
-    Banner.Position = UDim2.new(0.5, -200, -0.2, 0) -- Start powyżej ekranu
+    Banner.Position = UDim2.new(0.5, -200, -0.2, 0) 
     Banner.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Banner.BorderSizePixel = 2
     Banner.BorderColor3 = Color3.new(1, 1, 1)
@@ -281,18 +313,13 @@ local function DisplayNotification(text)
     MsgLbl.TextXAlignment = Enum.TextXAlignment.Left
     MsgLbl.TextScaled = true
     
-    -- Animacja wjazdu
+    -- Animacja
     TweenService:Create(Banner, TweenInfo.new(0.5, Enum.EasingStyle.Bounce), {Position = UDim2.new(0.5, -200, 0.1, 0)}):Play()
     
-    -- 2. Wyślij na Czat (Aby inni widzieli)
-    -- Próbujemy znaleźć RemoteEvent czatu
-    local ChatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-    local SayMessage = ChatEvents and ChatEvents:FindFirstChild("SayMessageRequest")
-    if SayMessage then
-        SayMessage:FireServer(text, "All")
-    end
+    -- Wyślij na czat
+    SendChatMessage(text)
     
-    -- Usuń powiadomienie po 5 sekundach
+    -- Usuń po czasie
     task.delay(5, function()
         if Banner then
             TweenService:Create(Banner, TweenInfo.new(0.5), {Position = UDim2.new(0.5, -200, -0.2, 0)}):Play()
@@ -309,7 +336,6 @@ GlobalInput.FocusLost:Connect(function(enterPressed)
         GlobalMsgGui.Enabled = false
     end
 end)
-
 
 -- === SYSTEM RADIAL MENU (ZAKTUALIZOWANY) ===
 local RadialGui = Instance.new("ScreenGui")
@@ -330,7 +356,6 @@ local function CreateMenuOption(name, angle, color, actionName)
     local Container = Instance.new("Frame", RadialFrame)
     Container.Size = UDim2.new(0, 130, 0, 50)
     local rad = math.rad(angle)
-    -- Zwiększamy nieco promień dla czytelności przy większej liczbie opcji
     Container.Position = UDim2.new(0.5, math.cos(rad) * 190 - 65, 0.5, math.sin(rad) * 190 - 25)
     Container.BackgroundTransparency = 1
 
@@ -341,7 +366,7 @@ local function CreateMenuOption(name, angle, color, actionName)
     Option.Text = name
     Option.TextColor3 = Color3.new(1, 1, 1)
     Option.FontFace = CustomFont
-    Option.TextSize = 11 -- Zmniejszona czcionka, żeby się zmieściło
+    Option.TextSize = 12
     Option.Name = actionName
     Option.Active = true 
 
@@ -367,7 +392,7 @@ local function CreateMenuOption(name, angle, color, actionName)
     return Option
 end
 
--- Aktualizacja kątów dla 10 opcji (360 / 10 = 36 stopni różnicy)
+-- 10 opcji (36 stopni)
 local NoclipBtn = CreateMenuOption("NOCLIP: OFF", 0, Color3.fromRGB(255, 80, 80), "Noclip")
 local FlyBtn = CreateMenuOption("FLY: OFF", 36, Color3.fromRGB(80, 255, 80), "Fly")
 local AimBtn = CreateMenuOption("AIM: ON", 72, Color3.fromRGB(80, 80, 255), "Aim")
@@ -376,9 +401,8 @@ local SnapBtn = CreateMenuOption("SNAPLINES: ON", 144, Color3.fromRGB(255, 150, 
 local SpeedBtn = CreateMenuOption("SPEED: OFF", 180, Color3.fromRGB(0, 255, 255), "Speed")    
 local SpawnBtn = CreateMenuOption("TP: SPAWN", 216, Color3.fromRGB(255, 255, 255), "Spawn")
 local TpMenuBtn = CreateMenuOption("TP MENU", 252, Color3.fromRGB(255, 0, 255), "TpMenu")
--- NOWE PRZYCISKI
 local InvisBtn = CreateMenuOption("INVISIBLE: OFF", 288, Color3.fromRGB(100, 100, 100), "Invisible")
-local GlobalMsgBtn = CreateMenuOption("GLOBAL MSG", 324, Color3.fromRGB(255, 50, 150), "GlobalMsg")
+local MsgBtn = CreateMenuOption("GLOBAL MSG", 324, Color3.fromRGB(255, 0, 150), "GlobalMsg")
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
@@ -424,7 +448,6 @@ UserInputService.InputEnded:Connect(function(input)
                 if root then root.CFrame = CFrame.new(SpawnPos) end
             elseif name == "TpMenu" then
                 TpGui.Enabled = not TpGui.Enabled
-            -- NOWE OBSŁUGI
             elseif name == "Invisible" then
                 _G.Invisible = not _G.Invisible
                 HoveredButton.Text = "INVISIBLE: " .. (_G.Invisible and "ON" or "OFF")
@@ -439,18 +462,16 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- === LOGIKA PERSYSTENCJI, NOCLIP, SPEEDHACK ORAZ INVISIBLE ===
+-- === LOGIKA PERSYSTENCJI, NOCLIP, SPEEDHACK, INVISIBLE ===
 RunService.Stepped:Connect(function()
     if not LocalPlayer.Character then return end
 
-    -- Noclip
     if _G.Noclip then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
     
-    -- Speedhack
     local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if hum then
         if _G.SpeedEnabled then
@@ -460,7 +481,7 @@ RunService.Stepped:Connect(function()
         end
     end
 
-    -- Invisible (Nowe)
+    -- Invisible Logic
     if _G.Invisible then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -469,25 +490,20 @@ RunService.Stepped:Connect(function()
                 part.Transparency = 1
             end
         end
-        -- Ukrycie paska nad głową jeśli istnieje
         local head = LocalPlayer.Character:FindFirstChild("Head")
         if head and head:FindFirstChild("BillboardGui") then
             head.BillboardGui.Enabled = false
         end
-    else
-        -- Przywracanie widoczności (proste przywrócenie na 0, może wymagać dopracowania dla akcesoriów)
-        if not _G.Noclip then -- Konflikt mały, ale ok
-           -- Nie resetujemy ciągle na 0 bo to zbuguje animacje, robimy to tylko przy zmianie stanu
-        end
+    elseif not _G.Invisible and not _G.Noclip then
+        -- Opcjonalne: jednorazowe przywrócenie (działa w loopie poniżej)
     end
 end)
 
--- Obsługa wyłączania Invisible (Jednorazowy reset)
-local lastInvisState = _G.Invisible
+local lastInvis = _G.Invisible
 RunService.Heartbeat:Connect(function()
-    if lastInvisState ~= _G.Invisible then
+    if lastInvis ~= _G.Invisible then
         if not _G.Invisible and LocalPlayer.Character then
-             for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                     part.Transparency = 0
                 elseif part:IsA("Decal") or part:IsA("Texture") then
@@ -495,20 +511,15 @@ RunService.Heartbeat:Connect(function()
                 end
             end
             local head = LocalPlayer.Character:FindFirstChild("Head")
-             if head and head:FindFirstChild("HumanoidRootPart") then -- Błąd logiczny poprawiony
-                 -- Nic
-             end
-             -- Reset GUI nad głową
-             if head then
-                 for _, v in pairs(head:GetChildren()) do
-                     if v:IsA("BillboardGui") then v.Enabled = true end
-                 end
-             end
+            if head then
+                for _, v in pairs(head:GetChildren()) do
+                    if v:IsA("BillboardGui") then v.Enabled = true end
+                end
+            end
         end
-        lastInvisState = _G.Invisible
+        lastInvis = _G.Invisible
     end
 end)
-
 
 -- === SYSTEM LATANIA ===
 RunService.Heartbeat:Connect(function()
@@ -642,7 +653,6 @@ local function IsVisible(TargetPart)
     local Character = LocalPlayer.Character
     if not Character then return false end
     
-    -- OPTYMALIZACJA: Używamy globalnego RayParams (utworzonego na górze skryptu) zamiast tworzyć nowego
     RayParams.FilterDescendantsInstances = {Character, Camera}
     
     local Result = workspace:Raycast(Camera.CFrame.Position, TargetPart.Position - Camera.CFrame.Position, RayParams)
@@ -755,39 +765,38 @@ task.spawn(function()
     local TargetRot = 45
 
     while true do
-        local folder = workspace:FindFirstChild(FolderName)
-        if folder then
-            for _, model in pairs(folder:GetChildren()) do
-                if model.Name == TargetName then
-                    local root = model:FindFirstChild("HumanoidRootPart")
-                    if root then
-                        -- Check for Billboard/Image combo
-                        local bg = root:FindFirstChild("BillboardGui")
-                        local img = bg and bg:FindFirstChild("ImageLabel")
+        pcall(function()
+            local folder = workspace:FindFirstChild(FolderName)
+            if folder then
+                for _, model in pairs(folder:GetChildren()) do
+                    if model.Name == TargetName then
+                        local root = model:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            local bg = root:FindFirstChild("BillboardGui")
+                            local img = bg and bg:FindFirstChild("ImageLabel")
 
-                        if img and img.Image == TargetImage and math.abs(img.Rotation - TargetRot) < 1 then
-                            -- Add Hitbox if missing
-                            if not root:FindFirstChild("TargetHitbox") then
-                                local box = Instance.new("BoxHandleAdornment")
-                                box.Name = "TargetHitbox"
-                                box.Adornee = root
-                                box.Size = root.Size + Vector3.new(0.5, 0.5, 0.5) -- Slightly bigger
-                                box.Color3 = Color3.fromRGB(255, 0, 0)
-                                box.Transparency = 0.4
-                                box.AlwaysOnTop = true
-                                box.ZIndex = 10
-                                box.Parent = root
+                            if img and img.Image == TargetImage and math.abs(img.Rotation - TargetRot) < 1 then
+                                if not root:FindFirstChild("TargetHitbox") then
+                                    local box = Instance.new("BoxHandleAdornment")
+                                    box.Name = "TargetHitbox"
+                                    box.Adornee = root
+                                    box.Size = root.Size + Vector3.new(0.5, 0.5, 0.5) 
+                                    box.Color3 = Color3.fromRGB(255, 0, 0)
+                                    box.Transparency = 0.4
+                                    box.AlwaysOnTop = true
+                                    box.ZIndex = 10
+                                    box.Parent = root
+                                end
+                            else
+                                local existing = root:FindFirstChild("TargetHitbox")
+                                if existing then existing:Destroy() end
                             end
-                        else
-                            -- Remove if condition no longer met (optional)
-                            local existing = root:FindFirstChild("TargetHitbox")
-                            if existing then existing:Destroy() end
                         end
                     end
                 end
             end
-        end
-        task.wait(0.5) -- Refresh loop
+        end)
+        task.wait(0.5) 
     end
 end)
 
@@ -835,7 +844,11 @@ RunService.RenderStepped:Connect(function()
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, Part.Position)
             if _G.AutoShoot and IsVisible(Part) then
                 if not (_G.FriendCheck and IsFriend(Target)) then
-                      if mouse1click then mouse1click() end
+                      if mouse1click then 
+                          mouse1click() 
+                      elseif mouse_click then
+                          mouse_click()
+                      end
                 end
             end
         end
